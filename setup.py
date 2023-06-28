@@ -6,6 +6,6 @@ setup(name='nvratemodel',
       author='Stefan Ernst',
       author_email='sternst@ethz.ch',
       license='all rights reserved',
-      packages=['nvratemodel'],
+      packages=find_packages(),
       install_requires=['numpy','scipy','matplotlib','numba'],
       zip_safe=False)
