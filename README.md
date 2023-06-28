@@ -28,19 +28,7 @@ You need to install this library into a python environment. Consider the followi
   activate myNVenv
   ```
   ```
-  conda install numpy
-  ```
-  ```
-  conda install scipy
-  ```
-  ```
-  conda install matplotlib
-  ```
-  ```
-  conda install numba
-  ```
-  ```
-  conda install git
+  conda install numpy scipy matplotlib numba git
   ```
   If you use an already existing environment, and you are uncertain which packages you have installed already, check this via:
   ```
