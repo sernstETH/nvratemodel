@@ -38,7 +38,7 @@ You need to install this library into a python environment. Consider the followi
 
 - Now we install this library into the environment by:
   ```
-  pip install git+git://github.com/sernstETH/nvratemodel.git
+  pip install git+https://github.com/sernstETH/nvratemodel.git
   ```
   If you wish to uninstall it again later, use
   ```
