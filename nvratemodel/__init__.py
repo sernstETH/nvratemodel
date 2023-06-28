@@ -1,8 +1,8 @@
-from .GLOBAL import PATH_DATA
+from nvratemodel.GLOBAL import PATH_DATA
 
-from .src.auxRoutines import printMatrix
+from nvratemodel.src.auxRoutines import printMatrix
 
-from .src.core import basisStateNames, printPop, purerho, vecToDensityMatrix, \
+from nvratemodel.src.core import basisStateNames, printPop, purerho, vecToDensityMatrix, \
 get_Hes_EZ, get_H_EZ_withSS, partialTraceOrbit, partialTraceSpin, \
 get_avgH_EZ_withSS, get_avgHTRF_EZ_withSS, get_orbitalSplitting, \
 get_LarmorFrequ, lifetimeBoseEinsteinFunc, kmix1Full, kmix2TwoEmissions, \
@@ -19,8 +19,8 @@ getInitFidelity_ms0, getReadoutFidelity_ms0, \
 LindbladOp_DecayOfEyToEx_HF, LindbladOp_DecayOfExToEy_HF, LindbladOp_DecayOfExToEx_HF, \
 LindbladOp_DecayOfEyToEy_HF, LindbladOp_GS_msm1_ypiPulse_EZ
 
-from .src.plotRoutines import saveReadoutVsParam, save2DMap, \
+from nvratemodel.src.plotRoutines import saveReadoutVsParam, save2DMap, \
 savePopTimeTrace, saveEVvsBorEperp, saveIvsT, savekmixvsT, savePulseVsParam
 
-from .examples import example_PRB_Fig7a, example_PRB_Fig4h, \
+from nvratemodel.examples import example_PRB_Fig7a, example_PRB_Fig4h, \
 example_PRB_Fig3b, example_PRB_Fig7b, example_PRL_Fig3a
