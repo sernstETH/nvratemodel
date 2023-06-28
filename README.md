@@ -45,6 +45,11 @@ You need to install this library into a python environment. Consider the followi
   pip uninstall nvratemodel
   ```
 
+You can also use binder to directly use the library online without the need of any installation:
+
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/sernstETH/nvratemodel/HEAD)
+
+But note that in its current state, it is extremely slow compared to an installation as given above, and should rather be seen as a tool to view the code.
 
 
 First steps
@@ -82,7 +87,7 @@ There are two more things to note before you get started:
   ```
   nv.example_PRL_Fig3a.run(path=nv.PATH_DATA)
   ```
-  it to see whether it works and to have a look at the saved data structure (a human-readable ```.json``` file).
+  to see whether it works and to have a look at the saved data structure (a human-readable ```.json``` file).
 
 - Generating a LUT of the Debye Integral:
   
@@ -92,7 +97,6 @@ There are two more things to note before you get started:
   nv.updateDebyeIntegralFullLUT(0.168)
   ```
   for the default Debye cutoff energy of ```phonCutoff=0.168```eV. You can also set other values of ```modeldict['phonCutoff']``` (see below) - the library will then ask you again to update the LUT with the values requested.
-
 
 
 Overview of the readily available plot routines
@@ -108,4 +112,3 @@ How to code with this library yourself
 ... upload in progress
 
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/sernstETH/nvratemodel/HEAD)
