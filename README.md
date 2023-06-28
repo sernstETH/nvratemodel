@@ -106,3 +106,6 @@ The code of the examples in the example folder of this library should serve as a
 How to code with this library yourself
 ---------------------------------------
 ... upload in progress
+
+
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/sernstETH/nvratemodel/blob/main/setup.py/HEAD)
