@@ -4,11 +4,13 @@ NUMBA_OPT = True
 # it can be useful to use NUMBA_OPT=False.
 
 
-################### MACHINE SPECIFIC SETTINGS ###########################
-from os.path import abspath, dirname
+################### MACHINE SPECIFIC SETTINGS ################################
+from os.path import abspath, dirname, expanduser
+from os.path import join as osjoin
 ROOTDIR = dirname(abspath(__file__))
 # PATH_DATA =  ROOTDIR # alternative, set yourself:
-PATH_DATA = abspath('C:/nvratemodel_data')
+# PATH_DATA = abspath('C:/nvratemodel_data')
+PATH_DATA = osjoin(expanduser('~'), 'nvratemodel_data')
 
 
 ################### Common parameter settings ################################
