@@ -10,7 +10,7 @@ from src.core import MEmodel, HighTmodel, LowTmodel, \
         loadModelDictFromFile, makeModelDict, \
         diamondDebyeEnergy, AbtewCutoffEnergy, PlakhotnikCutoffEnergy
         
-from src.plotRoutines import saveReadoutVsParam
+from src.simulationRoutines import simulateReadoutVsParam
 
 from GLOBAL import PATH_DATA
 
@@ -58,6 +58,6 @@ def run(path=None):
     argsList.append((HighTmodel, deepcopy(modeldict)))
     argsList.append((LowTmodel, deepcopy(modeldict)))
     
-    dic = saveReadoutVsParam(yAxis=yAxis, path=path_save, plot=True,
+    dic = simulateReadoutVsParam(yAxis=yAxis, path=path_save, plot=True,
            xParamName=paramName, x=paramList,
            argsList=argsList, integrationTime=thistint)
