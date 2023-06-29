@@ -148,7 +148,7 @@ This library has two core objects to handle simulations:
   To view all methods that ```NVrateModel``` objects have, take a look at the doc strings of the methods of the base class ```NVrateModel```.
 
 
-A word on the usage of the numba package
+A word on computational speed and the numba package
 ----------------------------------------
 Maybe you noticed above, that calling e.g. ```nv.HighTmodel(**mymodeldict).PL()``` for the first time is dramatically slower than calling it for the second time. This is because the numba package has to translate python code to fast machine code when the required functions are called for the first time.
 If you wish to disable the usage of numba, you can easily do this by setting
