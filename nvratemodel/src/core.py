@@ -12,10 +12,10 @@ from json import load, dump
 
 
 # Configure paths for LUT and saving/loading data:
-from os.path import abspath, dirname
+from os.path import abspath, dirname, pardir
 from os.path import join as osjoin
 import sys
-ROOTDIR = abspath(osjoin(dirname(__file__), '..'))
+ROOTDIR = abspath(osjoin(dirname(__file__), pardir))
 sys.path.insert(0, ROOTDIR) # add root directory to import paths
 
 PATH_LUT = ROOTDIR
