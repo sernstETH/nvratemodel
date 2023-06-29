@@ -11,7 +11,7 @@ from src.core import MEmodel, HighTmodel, LowTmodel, \
         diamondDebyeEnergy, AbtewCutoffEnergy, PlakhotnikCutoffEnergy, \
         makeTstepsFromDurations, piPulse, LindbladOp_GS_msm1_ypiPulse_EZ
         
-from src.plotRoutines import savePopTimeTrace
+from src.simulationRoutines import simulatePopTimeTrace
 
 from GLOBAL import PATH_DATA
 
@@ -82,7 +82,7 @@ def run(path=None):
     jumpOps = [LindbladOp_GS_msm1_ypiPulse_EZ,]
 
 
-    axes1, axes2, dic, thispath = savePopTimeTrace(
+    axes1, axes2, dic, thispath = simulatePopTimeTrace(
         times, tsteps, ksteps, state0,
         path=path_save, basisName=basisName,
         explainStr=explainStr,
