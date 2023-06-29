@@ -162,15 +162,19 @@ in the ```GLOBAL.py``` file located in the installed nvratemodel root directory.
 Overview of readily available simulation routines
 --------------------------------------------------
 The code of the examples in the example folder of this library should serve as a guide on how to use the nvratemodel library.
-
-... upload in progress
+All high-level routines to simulate (and by default ```plot=True``` but not save ```path=None```) are:
+```
+simulateReadoutVsParam
+simulate2DMap
+simulateEVvsBorEperp
+simulateIvsT
+simulatekmixvsT
+simulatePulseVsParam
+simulatePopTimeTrace
+```
+Take a look at their doc strings by ```help(function_name)``` to learn more about how to use them or get an idea of their output by just calling them with their defaults ```function_name()```. Just the more involved ```simulatePopTimeTrace``` function needs some arguments, of which an example can be found in ```example_PRB_Fig3b.py```.
 
 
 Programming simulations yourself
 ---------------------------------
-... upload in progress
-
-
-
-
-
+Take a look at the root directories ```__init__.py``` file to view all available functions and use ```help(function_name)``` to learn more about them.
