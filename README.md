@@ -91,7 +91,7 @@ There are two more things to note before you get started:
 
 - Generating a LUT of the Debye Integral:
   
-  As you probably noticed in the example above, the library printed a note about a missing look-up table (LUT) of the Debye Integral. If you just want to test the nvratemodel library a bit or if you just intend to use it at room temperature (```HighTmodel```), you can just ignore this. But if you want to use the ```MEmodel``` and are interested in a faster computational speed, do as the printed note tells you: generate (and automatically save in the root directory of the nvratemodel) a LUT, which will take some minutes, but saves you the time on all computations later on.
+  As you probably noticed in the example above, the library printed a note about a missing look-up table (LUT) of the Debye Integral. If you just want to test the nvratemodel library a bit or if you just intend to use it at room temperature (```HighTmodel```), you can just ignore this. But if you want to use the ```MEmodel``` and are interested in a faster computational speed, do as the printed note tells you: generate (and automatically save in the root directory of the nvratemodel) a LUT, which will take on the order of 25min, but saves you the time on all computations later on.
   Call 
   ```
   nv.updateDebyeIntegralFullLUT(0.168)
