@@ -9,7 +9,7 @@ sys.path.insert(0, abspath(osjoin(dirname(__file__), '..'))) # add root director
 from src.core import MEmodel, HighTmodel, LowTmodel, \
     loadModelDictFromFile, makeModelDict
     
-from src.plotRoutines import saveReadoutVsParam
+from src.simulationRoutines import simulateReadoutVsParam
 
 from GLOBAL import PATH_DATA
 
@@ -60,6 +60,6 @@ def run(path=None):
     argsList.append((LowTmodel, deepcopy(modeldicti)))
     
     
-    dic = saveReadoutVsParam(yAxis=yAxis, path=path_save, plot=True,
+    dic = simulateReadoutVsParam(yAxis=yAxis, path=path_save, plot=True,
            xParamName=paramName, x=paramList,
            argsList=argsList, integrationTime=thistint)
