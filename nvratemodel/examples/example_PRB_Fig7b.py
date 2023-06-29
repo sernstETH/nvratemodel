@@ -10,7 +10,7 @@ from src.core import MEmodel, HighTmodel, LowTmodel, \
         loadModelDictFromFile, makeModelDict, \
         diamondDebyeEnergy, AbtewCutoffEnergy, PlakhotnikCutoffEnergy
         
-from src.plotRoutines import savePulseVsParam
+from src.simulationRoutines import simulatePulseVsParam
 
 from GLOBAL import PATH_DATA
 
@@ -51,5 +51,5 @@ def run(path=None):
     modeldicti['T'] = 0
     argsList.append((LowTmodel, deepcopy(modeldicti)))
     
-    dic = savePulseVsParam(path=path_save, plot=True, stackedPlot=True,
+    dic = simulatePulseVsParam(path=path_save, plot=True, stackedPlot=True,
                  argsList = argsList, integrationTime=thistint)
