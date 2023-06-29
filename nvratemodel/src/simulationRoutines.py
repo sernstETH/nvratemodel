@@ -6,7 +6,7 @@ sys.path.insert(0, abspath(osjoin(dirname(__file__), '..'))) # add root director
 from src.core import *
 
 
-def saveEVvsBorEperp(path=None, plot=True, xAxis='B',
+def simulateEVvsBorEperp(path=None, plot=True, xAxis='B',
                      Bmin=0e-3, Bmax=200e-3,
                      Eperp_min=0e9, Eperp_max=40e9,
                      plotES=True, plotGS=True, plotAvgES=True, plotOrbES=True,
@@ -343,7 +343,7 @@ def saveEVvsBorEperp(path=None, plot=True, xAxis='B',
 
 
 
-def savekmixvsT(path=None, plot=True, Tmax = 300, # unit: K
+def simulatekmixvsT(path=None, plot=True, Tmax = 300, # unit: K
                 num=300,
                 EperpList=[3e9, 30e9, 200e9],
                 T0=0., # T0=4.4K in Goldman2015Phonon SI.
@@ -549,7 +549,7 @@ def savekmixvsT(path=None, plot=True, Tmax = 300, # unit: K
 
 
 
-def saveIvsT(path=None, plot=True, Tmax=300, # unit: K
+def simulateIvsT(path=None, plot=True, Tmax=300, # unit: K
        num=300,
        cutoffEnergyList = [
        PlakhotnikCutoffEnergy, AbtewCutoffEnergy, diamondDebyeEnergy,
@@ -659,7 +659,7 @@ def saveIvsT(path=None, plot=True, Tmax=300, # unit: K
 
 
 
-def saveReadoutVsParam(yAxis='C', path=None, plot=True,
+def simulateReadoutVsParam(yAxis='C', path=None, plot=True,
              xParamName ='T', x=np.linspace(0, 300, 50),
              argsList = [(MEmodel, makeModelDict()),],
              integrationTime='optSNR', tauR=0, Delta_t=5e-9, N=4,
@@ -906,7 +906,7 @@ def saveReadoutVsParam(yAxis='C', path=None, plot=True,
 
 
 
-def save2DMap(zAxis='PL', path=None, plot=True,
+def simulate2DMap(zAxis='PL', path=None, plot=True,
              xParamName='B', x=np.linspace(0e-3, 200e-3, 50), 
              yParamName='T', y=np.linspace(0, 105, 50),
              integrationTime=250e-9, tauR=0, Delta_t=5e-9, N=4,
@@ -1165,7 +1165,7 @@ def save2DMap(zAxis='PL', path=None, plot=True,
     return dic
 
 
-def savePopTimeTrace(times, tsteps, ksteps, state0,
+def simulatePopTimeTrace(times, tsteps, ksteps, state0,
                      path=None,  plot=True, basisName='EZ',
                      jumpTimes=[], jumpOps=[],
                      explainStr='',
@@ -1437,14 +1437,14 @@ def savePopTimeTrace(times, tsteps, ksteps, state0,
 
 
 
-def savePulseVsParam(path=None, plot=True, stackedPlot=True,
+def simulatePulseVsParam(path=None, plot=True, stackedPlot=True,
              argsList = [(MEmodel, makeModelDict()),],
              laserOnTime = 2.0e-6, dt=2e-9, integrationTime='optSNR',
              tauR=0, Delta_t=5e-9, N=4):
     """
     For a list of models/settings, compute a time-resolved pulsed readout
-    sequence. Such sequences are the basis for the y/z-axis of saveReadoutVsParam()
-    and save2DMap().
+    sequence. Such sequences are the basis for the y/z-axis of simulateReadoutVsParam()
+    and simulate2DMap().
 
     Parameters
     ----------
