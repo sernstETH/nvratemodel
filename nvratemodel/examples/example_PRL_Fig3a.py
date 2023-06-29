@@ -9,7 +9,7 @@ sys.path.insert(0, abspath(osjoin(dirname(__file__), '..'))) # add root director
 from src.core import MEmodel, HighTmodel, LowTmodel, \
     loadModelDictFromFile, makeModelDict
     
-from src.plotRoutines import save2DMap
+from src.simulationRoutines import simulate2DMap
 
 from GLOBAL import PATH_DATA, kE12OVERkA1
 
@@ -68,7 +68,7 @@ def run(path=None):
     # (is simply ignored with yAxis='PL' here)
     thistauR = 23e-9 # unit: s
     
-    dic = save2DMap(zAxis=zAxis, path=path_save, plot=True,
+    dic = simulate2DMap(zAxis=zAxis, path=path_save, plot=True,
                  xParamName=paramName1, x=paramList1, 
                  yParamName=paramName2, y=paramList2,
                  modelClass = modelClass,
