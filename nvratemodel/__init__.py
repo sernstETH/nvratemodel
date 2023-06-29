@@ -19,8 +19,8 @@ getInitFidelity_ms0, getReadoutFidelity_ms0, \
 LindbladOp_DecayOfEyToEx_HF, LindbladOp_DecayOfExToEy_HF, LindbladOp_DecayOfExToEx_HF, \
 LindbladOp_DecayOfEyToEy_HF, LindbladOp_GS_msm1_ypiPulse_EZ
 
-from .src.plotRoutines import saveReadoutVsParam, save2DMap, \
-savePopTimeTrace, saveEVvsBorEperp, saveIvsT, savekmixvsT, savePulseVsParam
+from .src.simulationRoutines import simulateReadoutVsParam, simulate2DMap, \
+simulatePopTimeTrace, simulateEVvsBorEperp, simulateIvsT, simulatekmixvsT, simulatePulseVsParam
 
 from .examples import example_PRB_Fig7a, example_PRB_Fig4h, \
 example_PRB_Fig3b, example_PRB_Fig7b, example_PRL_Fig3a
