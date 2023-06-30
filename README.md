@@ -120,7 +120,7 @@ This library has two core objects to handle simulations:
   
 - ```NVrateModel```s are objects to simulate the population dynamics, and thus photoluminescence (PL), of a set of NV parameters. Several ```NVrateModel```-types are available:
   - ```MEmodel```: Master equation based model to simulate the NV center population dynamics over the full range of strain/el. field, magnetic field, and temperature from cryogenic to room temperature.
-  - ```LowTmodel```: Classical rate equation model to simulate the NV center population dynamics at cryogenic temperature. Up to around 30K, the classical ```LowTmodel``` shows a similar behavior as the ```MEmodel``` and might be useful as an approximation with significantly enhanced computational speed. The correct treatment of orbital hopping due to electron-phonon coupling is the ```MEmodel```, though. In the ```LowTmodel```, orbital hopping is introduced as a classical rate that also destroys the spin space coherences (which is wrong). In contrast to the ```SZmodel``` and https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.128.177401, the ```LowTmodel``` introduces the rates in the same bases as the ```MEmodel```, see Fig. 2(d) of https://arxiv.org/abs/2304.02521.
+  - ```LowTmodel```: Classical rate equation model to simulate the NV center population dynamics at cryogenic temperature. Up to around 30K, the classical ```LowTmodel``` shows a similar behavior as the ```MEmodel``` and might be useful as an approximation with significantly enhanced computational speed. The correct treatment of orbital hopping due to electron-phonon coupling is the ```MEmodel```, though. In the ```LowTmodel```, orbital hopping is introduced as a classical rate that also destroys the spin space coherences, which is wrong. The ```LowTmodel``` introduces the rates in the same bases as the ```MEmodel```, see Fig. 2(d) of https://arxiv.org/abs/2304.02521.
   - ```HighTmodel```: Classical rate equation model to simulate the NV center population dynamics around room temperature, as often employed in the literature. As the orbital hopping rate of the ```MEmodel``` dominates the population dynamics, the ```MEmodel``` starts to resemble the behavior of this classical ```HighTmodel```. It can thus be used for computations at high speeds at elevated temperatures. Note that for high strain ```modeldict['Eperp']```, some orbital properties remain at elevated temperatures. These are only included in ```HighTmodel``` when ```modeldict['highT_trf']=True```. For more details see https://arxiv.org/abs/2304.02521.
   
   The NV parameters can be provided in the instantiation of an ```NVrateModel``` object as kwargs based on a ```modeldict```. The following three code blocks generate the same ```NVrateModel``` object called ```myMEmodel```:
@@ -172,9 +172,93 @@ simulatekmixvsT
 simulatePulseVsParam
 simulatePopTimeTrace
 ```
-Take a look at their doc strings by ```help(function_name)``` to learn more about how to use them or get an idea of their output by just calling them with their defaults ```function_name()```. Just the more involved ```simulatePopTimeTrace``` function needs some arguments, of which an example can be found in ```example_PRB_Fig3b.py```.
+Take a look at their doc strings by ```help(nv.function_name)``` to learn more about how to use them or get an idea of their output by just calling them with their defaults ```function_name()```. Just the more involved ```simulatePopTimeTrace``` function needs some arguments, of which an example can be found in ```example_PRB_Fig3b.py```.
 
 
 Programming simulations yourself
 ---------------------------------
-Take a look at the root directories ```__init__.py``` file to view all available functions and use ```help(function_name)``` to learn more about them.
+Details on the basis states used in this library can be found in the dictionary containing them
+```
+basisStateNames
+```
+and an explanation is provided in its class doc string:
+```
+help(nv.BasisStateNames)
+```
+
+All further functions provided by the library to the user are listed below. Use ```help(nv.function_name)``` to learn more about them.
+
+Useful functions:
+```
+printMatrix
+printPop
+purerho
+vecToDensityMatrix
+```
+
+Hamiltonian (H) related functions:
+```
+get_Hes_EZ
+get_H_EZ_withSS
+partialTraceOrbit
+partialTraceSpin
+get_avgH_EZ_withSS
+get_avgHTRF_EZ_withSS
+get_orbitalSplitting
+get_LarmorFrequ
+```
+
+Functions related to rates of the model:
+```
+lifetimeBoseEinsteinFunc
+kmix1Full
+kmix2TwoEmissions
+DetailedBallanceRatio
+DebyeIntegrandFull
+DebyeIntegralFull
+DebyeIntegralFull_fromLUT
+updateDebyeIntegralFullLUT
+kmix2Full
+getOrbitalRates
+getPL
+```
+
+Functions related to ```modeldict```s:
+```
+loadModelDictFromFile
+makeModelDict
+switchToReducedAngles
+scaleParam
+formatParamValue
+getParamStr
+printModelDict
+```
+
+Functions to work with ```NVrateModels```s:
+```
+makeTstepsFromDurations
+calcTimeTrace
+makeStepsForLaserRise
+getContrastOf2pointODMRTrace
+sensitivityGauss
+sensitivityEquation
+sensitivityLor
+sensitivityEquation_Lor
+readoutSNR, SNREquation
+getAmountMs0ForSequ
+initState
+piPulse
+twoPointODMRTrace
+getContrast
+getInitFidelity_ms0
+getReadoutFidelity_ms0
+```
+
+Jump operators:
+```
+LindbladOp_DecayOfEyToEx_HF
+LindbladOp_DecayOfExToEy_HF
+LindbladOp_DecayOfExToEx_HF
+LindbladOp_DecayOfEyToEy_HF
+LindbladOp_GS_msm1_ypiPulse_EZ
+```
