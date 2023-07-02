@@ -117,6 +117,10 @@ This library has two core objects to handle simulations:
   ```
   nv.printModelDict(nv.makeModelDict())
   ```
+  You can also load the set of NV parameters of a simulation you previously saved. After running ```nv.example_PRL_Fig3a.run(path=nv.PATH_DATA)``` from above, you can now load the ```modeldict``` as:
+  ```
+  mymodeldict = nv.loadModelDictFromFile(nv.PATH_DATA+'\\yyyy-mm-dd_hh-mm-ss_2Dmap\\2Dmap.json')
+  ```  
   
 - ```NVrateModel```s are objects to simulate the population dynamics, and thus photoluminescence (PL), of a set of NV parameters. Several ```NVrateModel```-types are available:
   - ```MEmodel```: Master equation based model to simulate the NV center population dynamics over the full range of strain/el. field, magnetic field, and temperature from cryogenic to room temperature.
