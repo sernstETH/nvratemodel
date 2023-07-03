@@ -181,16 +181,12 @@ Take a look at their doc strings by ```help(nv.function_name)``` to learn more a
 
 Programming simulations yourself
 ---------------------------------
-Details on the basis states used in this library can be found in the dictionary containing them
+Details on the basis states used in this library can be found in the dictionary containing them:
 ```
-basisStateNames
-```
-and an explanation is provided in its class doc string:
-```
-help(nv.BasisStateNames)
+help(nv.basisStateNames)
 ```
 
-All further functions provided by the library to the user are listed below. Use ```help(nv.function_name)``` to learn more about them.
+All functions provided by the library to the user are listed below. Use ```help(nv.function_name)``` to learn more about them.
 
 Useful functions:
 ```
