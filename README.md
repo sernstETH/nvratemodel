@@ -248,7 +248,8 @@ sensitivityGauss
 sensitivityEquation
 sensitivityLor
 sensitivityEquation_Lor
-readoutSNR, SNREquation
+readoutSNR
+SNREquation
 getAmountMs0ForSequ
 initState
 piPulse
