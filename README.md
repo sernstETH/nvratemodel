@@ -9,6 +9,7 @@ What this library can do:
 
 What this library cannot do (at this point):
 - Simulate quantum gates on the spin other than instantaneous pi-pulses.
+- Simulate non-classical optical processes.
 - Include the hyperfine structure in the simulation.
 - Include the effects of strain/el. field on the ground state, and the effect of its on-axis components in general.
 
