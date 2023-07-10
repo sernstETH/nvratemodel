@@ -84,7 +84,7 @@ There are two more things to note before you get started:
 
 - Saving simulation results:
   
-  In all examples above, as well as all plot routines (see below), the optional argument ```path``` can be set to ```PATH_DATA```, which defaults to ```your_user_folder/nvratemodel_data/```. If you wish to set a different path, modify the ```PATH_DATA``` parameter in the ```GLOBAL.py``` file located in the installed nvratemodel root directory. In the same file, you can also modify the default values for the  NV parameters used by the model. Of course, all these default values are only used, if no other values are explicitly provided by the user in the function calls.
+  In all examples above, as well as all simulation routines (see below), the optional argument ```path``` can be set to ```PATH_DATA```, which defaults to ```your_user_folder/nvratemodel_data/```. If you wish to set a different path, modify the ```PATH_DATA``` parameter in the ```GLOBAL.py``` file located in the installed nvratemodel root directory. In the same file, you can also modify the default values for the  NV parameters used by the model. Of course, all these default values are only used if no other values are explicitly provided by the user in the function calls.
   Test 
   ```
   nv.example_PRL_Fig3a.run(path=nv.PATH_DATA)
@@ -150,7 +150,17 @@ This library has two core objects to handle simulations:
   ```
   nv.HighTmodel(**mymodeldict).PL()
   ```
-  To view all methods that ```NVrateModel``` objects have, take a look at the doc strings of the methods of the base class ```NVrateModel```.
+  To learn more about the methods that ```NVrateModel``` objects have, take a look at the doc strings of the methods of the base class ```NVrateModel```:
+  ```
+  nv.NVrateModel.population
+  nv.NVrateModel.getPureState
+  nv.NVrateModel.getGSPolarization_ms0
+  nv.NVrateModel.getESPolarization_ms0
+  nv.NVrateModel.steadyState
+  nv.NVrateModel.PL
+  nv.NVrateModel.propagateState
+  nv.NVrateModel.calcTimeTrace
+  ```
 
 
 A word on computational speed and the numba package
