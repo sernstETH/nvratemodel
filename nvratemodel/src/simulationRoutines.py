@@ -689,9 +689,10 @@ def simulateReadoutVsParam(yAxis='C', path=None, plot=True,
         For more information see makeModelDict().
     x : numpy.array, optional
         The values of xParamName to use as x-axis.
-    argsList : list of tuples of (NVrateModel, dict), optional
-        For each list element, the rate model with parameters as specified in the
-        dict (possible keywords as in makeModelDict()) is computed over the x-axis.
+    argsList : list of tuples of (NVrateModel, modeldict), optional
+        For each list element, the rate model NVrateModel with parameters as 
+        specified in the dict modeldict (as returned by makeModelDict(), for 
+        possible keywords see there) is computed over the x-axis.
     integrationTime : float or str, optional
         If a float [Unit: s] is provided, it is used as fix integration time.
         For more information see getContrastOf2pointODMRTrace().
@@ -1454,9 +1455,10 @@ def simulatePulseVsParam(path=None, plot=True, stackedPlot=True,
         Plot the result if desired.
     stackedPlot : bool, optional
         Plot the signal and readout parts of the sequence on top of each other.
-    argsList : list of tuples of (NVrateModel, dict), optional
-        For each list element, the rate model with parameters as specified in the
-        dict (possible keywords as in makeModelDict()) is computed over time.
+    argsList : list of tuples of (NVrateModel, modeldict), optional
+        For each list element, the rate model NVrateModel with parameters as 
+        specified in the dict modeldict (as returned by makeModelDict(), for 
+        possible keywords see there) is computed over the x-axis.
     laserOnTime : float, optional
         Duration of the laser pulse. Unit: s
     dt : float, optional
