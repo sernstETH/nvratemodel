@@ -251,10 +251,10 @@ hbar = h/(2*np.pi) # Units: eV/(1/s)
 S_z_opp = np.array([[  1,  0,  0],
                     [  0,  0,  0],
                     [  0,  0, -1]], dtype=(np.complex128))
-Sx      = np.array([[  0,sq2,  0],
+S_x_opp      = np.array([[  0,sq2,  0],
                     [sq2,  0,sq2],
                     [  0,sq2,  0]], dtype=(np.complex128))
-Sy      = np.array([[     0,-sq2*1j,      0],
+S_y_opp      = np.array([[     0,-sq2*1j,      0],
                     [sq2*1j,      0,-sq2*1j],
                     [     0, sq2*1j,     0]], dtype=(np.complex128))
 sigma_z = np.array([[ 1,  0],
@@ -362,10 +362,10 @@ def Vgs_EZ(Bx, By, Bz, Ex, Ey, Ez): # Doherty2013: equ(2)
     conversion between V/m and GHz!
     """
     Vgs_EZ= (
-        Bz*S_z_opp + Bx*Sx + By*Sy
+        Bz*S_z_opp + Bx*S_x_opp + By*S_y_opp
         + Ez*(np.dot(S_z_opp, S_z_opp) - 1*(1+1)/3*Id3)
-        + Ex*(np.dot(Sy, Sy)-np.dot(Sx, Sx))
-        + Ey*(np.dot(Sx, Sy)+np.dot(Sy, Sx))
+        + Ex*(np.dot(S_y_opp, S_y_opp)-np.dot(S_x_opp, S_x_opp))
+        + Ey*(np.dot(S_x_opp, S_y_opp)+np.dot(S_y_opp, S_x_opp))
         )
     return Vgs_EZ
 
@@ -373,12 +373,12 @@ Hes_EZ = ( # Doherty2013: equ(3)
     np.kron(Id2, Des_para*(np.dot(S_z_opp, S_z_opp)- 1*(1+1)/3*Id3))
     - Les_para*np.kron(sigma_y, S_z_opp)
     + Des_perp*(
-        np.kron(sigma_z, np.dot(Sy, Sy)-np.dot(Sx, Sx))
-        - np.kron(sigma_x, np.dot(Sy, Sx)+np.dot(Sx, Sy))
+        np.kron(sigma_z, np.dot(S_y_opp, S_y_opp)-np.dot(S_x_opp, S_x_opp))
+        - np.kron(sigma_x, np.dot(S_y_opp, S_x_opp)+np.dot(S_x_opp, S_y_opp))
         )
     + Les_perp*(
-        np.kron(sigma_z, np.dot(Sx, S_z_opp)+np.dot(S_z_opp, Sx))
-        - np.kron(sigma_x, np.dot(Sy, S_z_opp)+np.dot(S_z_opp, Sy))
+        np.kron(sigma_z, np.dot(S_x_opp, S_z_opp)+np.dot(S_z_opp, S_x_opp))
+        - np.kron(sigma_x, np.dot(S_y_opp, S_z_opp)+np.dot(S_z_opp, S_y_opp))
         )
     )
 
@@ -396,8 +396,8 @@ def Ves_EZ(Bx, By, Bz, Ex, Ey, Ez): # Doherty2013: equ(4)
         - Ey*np.kron(sigma_x, Id3)
         + gl*Bz/2.003*np.kron(sigma_y, Id3) # /2 since Bz [Hz] needs conversion.
         + Bz*np.kron(Id2, S_z_opp)
-        + Bx*np.kron(Id2, Sx)
-        + By*np.kron(Id2, Sy)        
+        + Bx*np.kron(Id2, S_x_opp)
+        + By*np.kron(Id2, S_y_opp)        
         )
     return Ves_EZ
 
@@ -638,14 +638,14 @@ def get_avgHesTRF_EZ_approx(B, thetaB, phiB, Eperp, phiE, T): # see Plakhotnik20
     """
     R = tempReductionFac(B, thetaB, phiB, Eperp, phiE, T)
     Bx, By, Bz = polar2cart(B_T2Hz(B), thetaB, phiB)
-    Ves_EZ = Bz*S_z_opp + Bx*Sx + By*Sy
+    Ves_EZ = Bz*S_z_opp + Bx*S_x_opp + By*S_y_opp
     c = np.cos(phiE)
     s = np.sin(phiE)
     avgHes_EZ = (Des_para*(np.dot(S_z_opp, S_z_opp)- 1*(1+1)/3*Id3)
-                 - R*Des_perp*(c*(np.dot(Sy, Sy) - np.dot(Sx, Sx))
-                               + s*(np.dot(Sy, Sx) + np.dot(Sx, Sy)))
-                 - R*Les_perp*(c*(np.dot(Sx, S_z_opp) + np.dot(S_z_opp, Sx))
-                               + s*(np.dot(Sy, S_z_opp) + np.dot(S_z_opp, Sy)))
+                 - R*Des_perp*(c*(np.dot(S_y_opp, S_y_opp) - np.dot(S_x_opp, S_x_opp))
+                               + s*(np.dot(S_y_opp, S_x_opp) + np.dot(S_x_opp, S_y_opp)))
+                 - R*Les_perp*(c*(np.dot(S_x_opp, S_z_opp) + np.dot(S_z_opp, S_x_opp))
+                               + s*(np.dot(S_y_opp, S_z_opp) + np.dot(S_z_opp, S_y_opp)))
                  + Ves_EZ
                  )
     return avgHes_EZ
@@ -690,7 +690,7 @@ def get_avgHesTRF_EZ(B, thetaB, phiB, Eperp, phiE, T): # see Plakhotnik2014 SI
     Bx, By, Bz = polar2cart(B_T2Hz(B), thetaB, phiB)
     # Ex, Ey, Ez = polar2cart(Eperp, np.radians(90), phiE) # all three Ex/y/z terms only give a constant energy shift and can thus be left out.
     # copy of Ves_EZ with the replacements:
-    avgVes_EZ = (Id2_tr*Bz*S_z_opp + Id2_tr*Bx*Sx + Id2_tr*By*Sy
+    avgVes_EZ = (Id2_tr*Bz*S_z_opp + Id2_tr*Bx*S_x_opp + Id2_tr*By*S_y_opp
                  # + sigma_y_tr*gl*Bz/2*Id3 # since g=2   # only gives a constant energy shift and can thus be left out. But this term can matter for rho_o_Boltzmann_EZ.
                  # + sigma_z_tr*Ex*Id3
                  # - sigma_x_tr*Ey*Id3
@@ -700,16 +700,16 @@ def get_avgHesTRF_EZ(B, thetaB, phiB, Eperp, phiE, T): # see Plakhotnik2014 SI
     avgHes_EZ = (Id2_tr*Des_para*(np.dot(S_z_opp, S_z_opp)- 1*(1+1)/3*Id3)
                  - sigma_y_tr*Les_para*S_z_opp
                  + sigma_z_tr*Des_perp*(
-                     np.dot(Sy, Sy)-np.dot(Sx, Sx)
+                     np.dot(S_y_opp, S_y_opp)-np.dot(S_x_opp, S_x_opp)
                      )
                  - sigma_x_tr*Des_perp*(
-                     np.dot(Sy, Sx)+np.dot(Sx, Sy)
+                     np.dot(S_y_opp, S_x_opp)+np.dot(S_x_opp, S_y_opp)
                      )
                  + sigma_z_tr*Les_perp*(
-                     np.dot(Sx, S_z_opp)+np.dot(S_z_opp, Sx)
+                     np.dot(S_x_opp, S_z_opp)+np.dot(S_z_opp, S_x_opp)
                      )
                  - sigma_x_tr*Les_perp*(
-                     np.dot(Sy, S_z_opp)+np.dot(S_z_opp, Sy)
+                     np.dot(S_y_opp, S_z_opp)+np.dot(S_z_opp, S_y_opp)
                      )
                  ) + avgVes_EZ
 
@@ -1502,8 +1502,8 @@ LindbladOp_DecayOfEyToEy_HF = np.array([
         [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
         ], dtype = np.complex128)
 
-LindbladOp_GS_msm1_ypiPulse_EZ = np.zeros((10,10), dtype = np.complex128)
-LindbladOp_GS_msm1_ypiPulse_EZ[:2,:2] = sigma_y
+LindbladOp_GS_msp1_ypiPulse_EZ = np.zeros((10,10), dtype = np.complex128)
+LindbladOp_GS_msp1_ypiPulse_EZ[:2,:2] = sigma_y # same as level1=0, level2=1 in piPulse()
 
 def makeCoherentLindbladOpList(
                 T = T_default,
@@ -4002,6 +4002,11 @@ def getContrast(integrationTime, minLaserOnTime=1.5e-6, tstepsize=1e-9,
     tstepsize : float, optional
         Size of time steps used to evaluate the PL traces on. Unit: s.
         
+    level1, level2 : int, optional
+        Indices of the levels between which the pi-pulse is applied to obtain
+        the contrast. Which levels these are depends on the state0.
+        The pi-pulse fidelity is given by modeldict['piPulseFid'].
+        
     tauR : float, optional
         Units: s. For optional parameters of the laser rise time tauR, Delta_t,
         and N, see makeStepsForLaserRise().
@@ -4220,6 +4225,7 @@ def getInitFidelity_ms0(modelClass=MEmodel, **modeldict):
 
 def getReadoutFidelity_ms0(integrationTime='optSNR',
                 tauR=0, Delta_t=5e-9, N=4, tstepsize=1e-9,
+                level1=0, level2=1,
                 modelClass=MEmodel,
                 **modeldict):
     """
@@ -4259,6 +4265,7 @@ def getReadoutFidelity_ms0(integrationTime='optSNR',
     contrast,tint,ref = getContrast(integrationTime,
                     tauR=tauR, Delta_t=Delta_t, N=N, tstepsize=tstepsize,
                     P0 = P0, modelClass=modelClass,
+                    level1=level1, level2=level2,
                     **modeldict)
     SNR = readoutSNR(contrast, tint, ref)
     

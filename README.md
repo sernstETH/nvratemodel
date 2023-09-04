@@ -181,7 +181,7 @@ All high-level routines to simulate (and by default ```plot=True``` but not save
 ```
 simulateReadoutVsParam
 simulate2DMap
-simulateEVvsBorEperp
+simulateEigenVsParam
 simulateIvsT
 simulatekmixvsT
 simulatePulseVsParam
@@ -198,14 +198,6 @@ help(nv.basisStateNames)
 ```
 
 All functions provided by the library to the user are listed below. Use ```help(nv.function_name)``` to learn more about them.
-
-Useful functions:
-```
-printMatrix
-printPop
-purerho
-vecToDensityMatrix
-```
 
 Hamiltonian (H) related functions:
 ```
@@ -272,5 +264,25 @@ LindbladOp_DecayOfEyToEx_HF
 LindbladOp_DecayOfExToEy_HF
 LindbladOp_DecayOfExToEx_HF
 LindbladOp_DecayOfEyToEy_HF
-LindbladOp_GS_msm1_ypiPulse_EZ
+LindbladOp_GS_msp1_ypiPulse_EZ
+```
+
+Some useful functions and definitions:
+```
+printMatrix
+printPop
+purerho
+vecToDensityMatrix
+compositeDiagMatrix
+expectationValue
+sortarrays
+getIndx
+ensure_dir
+inverse
+conjTransp
+eig
+eigh
+basisTrafo
+get_T_XtoY
+kB, h, hbar, S_z_opp, S_x_opp, S_y_opp, sigma_z, sigma_x, sigma_y, Id2, Id3, Id6, Id7, Id9, Id10
 ```

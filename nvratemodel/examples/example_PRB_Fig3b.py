@@ -9,7 +9,7 @@ sys.path.insert(0, abspath(osjoin(dirname(__file__), '..'))) # add root director
 from src.core import MEmodel, HighTmodel, LowTmodel, \
         loadModelDictFromFile, makeModelDict, \
         diamondDebyeEnergy, AbtewCutoffEnergy, PlakhotnikCutoffEnergy, \
-        makeTstepsFromDurations, piPulse, LindbladOp_GS_msm1_ypiPulse_EZ
+        makeTstepsFromDurations, piPulse, LindbladOp_GS_msp1_ypiPulse_EZ
         
 from src.simulationRoutines import simulatePopTimeTrace
 
@@ -79,7 +79,7 @@ def run(path=None):
     # run savePopTimeTrace() twice with the respective start states: once with
     # and once without a pi-pulse piPulse(state0) applied.
     jumpTimes = [tsteps[-3]-0.2e-6,] # unit: s
-    jumpOps = [LindbladOp_GS_msm1_ypiPulse_EZ,]
+    jumpOps = [LindbladOp_GS_msp1_ypiPulse_EZ,]
 
 
     axes1, axes2, dic, thispath = simulatePopTimeTrace(

@@ -6,12 +6,10 @@ sys.path.insert(0, abspath(osjoin(dirname(__file__), '..'))) # add root director
 from src.core import *
 
 
-def simulateEVvsBorEperp(path=None, plot=True, xAxis='B',
-                     Bmin=0e-3, Bmax=200e-3,
-                     Eperp_min=0e9, Eperp_max=40e9,
-                     plotES=True, plotGS=True, plotAvgES=True, plotOrbES=True,
-                     steps=300,
-                     **modeldict):
+def simulateEigenVsParam(path=None, plot=True,
+                         xParamName='B', x=np.linspace(0, 200e-3, 300),
+                         plotES=True, plotGS=True, plotAvgES=True, plotOrbES=True,
+                         **modeldict):
     """
     Compute the eigenvalues and eigenvectors (EV) of the Hamiltonian as a 
     function of xAxis (magnetic field or strain/el. field).
@@ -22,16 +20,12 @@ def simulateEVvsBorEperp(path=None, plot=True, xAxis='B',
         Save result to this path if provided.
     plot : bool, optional
         Plot the result if desired.
-    xAxis : str, optional
-        Magnetic field 'B' or strain/el. field 'Eperp'.
-    Bmin : float, optional
-        Start value of xAxis for the case of 'B'. Units: T
-    Bmax : float, optional
-        End value of xAxis for the case of 'B'. Units: T
-    Eperp_min : float, optional
-        Start value of xAxis for the case of 'Eperp'. Units: Hz
-    Eperp_max : float, optional
-        End value of xAxis for the case of 'Eperp'. Units: Hz
+    xParamName : str, optional
+        Pick the x-axis parameter. Options are all keywords of modeldict,
+        but only those that alter the Hamiltonian lead to an effect.
+        For more information see makeModelDict().
+    x : numpy.array, optional
+        The values of xParamName to use as x-axis.
     plotES : bool, optional
         Include the excited state (ES) in the plot if desired.
     plotGS : bool, optional
@@ -40,8 +34,6 @@ def simulateEVvsBorEperp(path=None, plot=True, xAxis='B',
         Include the averaged excited state (avgES) in the plot if desired.
     plotOrbES : bool, optional
         Include the orbital eigenenergies of the excited state in the plot if desired.
-    steps : int, optional
-        Number of xAxis steps.
     modeldict : dict, optional
         Optional keyword arguments can be provided by a modeldict or separately.
         For more details, see makeModelDict().
@@ -53,30 +45,13 @@ def simulateEVvsBorEperp(path=None, plot=True, xAxis='B',
 
     """
     modeldict = makeModelDict(**modeldict) # generate from modeldict kwargs
-    thetaB, phiB, = modeldict['thetaB'], modeldict['phiB']
+    thetaB, phiB, B = modeldict['thetaB'], modeldict['phiB'], modeldict['B']
     Eperp, phiE =  modeldict['Eperp'], modeldict['phiE']
-    B, Eperp = modeldict['B'], modeldict['Eperp']
     
     T = modeldict['T'] if 'T' in modeldict.keys() else 0.
     highT_trf = modeldict['highT_trf'] if 'highT_trf' in modeldict.keys() else False # used for avgES, then T from modeldict is used.
-    
-    if xAxis == 'B':
-        fixParam = Eperp
-        fixParamName = r'$|E_{\perp}|$'
-        xParams = np.linspace(Bmin, Bmax, num=steps)
-        xParamsName = r'$|B|$'
-        unit, scaling = scaleParam(('B',1))
-    elif xAxis == 'Eperp':
-        fixParam = B
-        fixParamName = r'$|B|$'
-        xParams = np.linspace(Eperp_min, Eperp_max, num=steps)
-        xParamsName = r'$|E_{\perp}|$'
-        unit, scaling = scaleParam(('Eperp',1))
-    else:
-        raise NotImplementedError("Use xAxis: \'B\' or \'Eperp\'")
-    xParamUnitName = f' [{unit}]'
-    xAxisConversion = lambda x: x*scaling
-    saveConversion = lambda x: x
+
+    xunit, xscaled = scaleParam((xParamName,x))
         
     ESenergies = []
     ESorbenergies = []
@@ -93,11 +68,19 @@ def simulateEVvsBorEperp(path=None, plot=True, xAxis='B',
     T_es_EZtoZF = T_EZtoZF[3:,3:]
     ESS_zOp = np.kron(Id2, S_z_opp)
     ESorbOp = np.kron(sigma_z, Id3)
-    for i in range(xParams.size):
-        if xAxis == 'B':
-            B = xParams[i]
-        else:
-            Eperp = xParams[i]
+    for i in range(x.size):
+        if xParamName=='B':
+            B = x[i]
+        elif xParamName=='thetaB':
+            thetaB = x[i]
+        elif xParamName=='phiB':
+            phiB = x[i]
+        elif xParamName=='Eperp':
+            Eperp = x[i]
+        elif xParamName=='phiE':
+            phiE = x[i]
+        elif xParamName=='T':
+            T = x[i]
             
         T_es_HFtoEZ = get_T_HFtoEZ_withSS(
             B, thetaB, phiB, Eperp, phiE
@@ -169,35 +152,38 @@ def simulateEVvsBorEperp(path=None, plot=True, xAxis='B',
     avgESeigVecs = np.array(avgESeigVecs)
 
     if plot or path!=None:    
-        name = 'eigenenergies of {} and {}\n{}={:.2f}GHz, {}={:.2f}°, {}={:.0f}°, {}={:.0f}°'.format(
-            r'$H_{gs}$', r'$H_{ES}$', fixParamName, fixParam/1e9,
-            r'$\theta_B$', np.degrees(thetaB), r'$\phi_B$', np.degrees(phiB),
-            r'$\phi_\xi$',  np.degrees(phiE))
+        name = 'eigenenergies of Hamiltonian\n{}'.format(
+            ''.join([
+                getParamStr((key, value))+', '
+                if key in ['thetaB', 'phiB', 'B', 'Eperp', 'phiE'] else ''
+                for key, value in modeldict.items()
+                ])[:-2]
+            )
         figEnergies = plt.figure()
         figEnergies.suptitle(name)
         figEnergies.set_tight_layout(True)
         axes = figEnergies.add_subplot(111)
         if plotOrbES:
             for i in range(ESorbenergies.shape[1]):
-                axes.plot(xAxisConversion(xParams), ESorbenergies[:,i]/1e9,
+                axes.plot(xscaled, ESorbenergies[:,i]/1e9,
                           label='{} orb. ES'.format([r'$E_x$', r'$E_y$'][i]), linestyle='-',
                           linewidth=4, color=['0.7', '0.85'][i])
         if plotES:
             for i in range(ESenergies.shape[1]):
-                axes.plot(xAxisConversion(xParams), ESenergies[:,i]/1e9,
+                axes.plot(xscaled, ESenergies[:,i]/1e9,
                           label=f'{i+1}. ES', linestyle='-')
         if plotAvgES:
             for i in range(avgESenergies.shape[1]):
-                axes.plot(xAxisConversion(xParams), avgESenergies[:,i]/1e9,
+                axes.plot(xscaled, avgESenergies[:,i]/1e9,
                           label=f'{i+1}. avged ES', linestyle='dotted',
                           color='black')
         if plotGS:
             for i in range(GSenergies.shape[1]):
-                axes.plot(xAxisConversion(xParams), GSenergies[:,i]/1e9,
+                axes.plot(xscaled, GSenergies[:,i]/1e9,
                           label=f'{i+1}. GS', linestyle='dashed')
-        axes.set_xlabel(xParamsName+xParamUnitName)
+        axes.set_xlabel(f'{xParamName} [{xunit}]')
         axes.set_ylabel(r'$E$ [GHz]')
-        axes.set_xlim(left=xAxisConversion(xParams[0]))
+        axes.set_xlim(xscaled.min())
         axes.legend(fontsize='small')
         axes.grid(True)
         
@@ -208,19 +194,22 @@ def simulateEVvsBorEperp(path=None, plot=True, xAxis='B',
             ESexpOp = ESexpS_zOp if op=='S_z' else ESexpOrbOp
             OpName = r'$<ES|\hat{S}_z|ES>$' if op=='S_z' else r'$<ES|\hat{\sigma}_z|ES>$'
             figExp = figExpS_z if op=='S_z' else figExpOrb
-            name = 'Expectation value {}\n{}={:.2f}GHz, {}={:.2f}°, {}={:.0f}°, {}={:.0f}°'.format(
-                OpName, fixParamName, fixParam/1e9,
-                r'$\theta_B$', np.degrees(thetaB), r'$\phi_B$', np.degrees(phiB),
-                r'$\phi_\xi$',  np.degrees(phiE))
+            name = 'Expectation value {}\n{}'.format(
+                OpName, ''.join([
+                    getParamStr((key, value))+', '
+                    if key in ['thetaB', 'phiB', 'B', 'Eperp', 'phiE'] else ''
+                    for key, value in modeldict.items()
+                    ])[:-2]
+                )
             figExp.suptitle(name)
             figExp.set_tight_layout(True)
             axes = figExp.add_subplot(111)
             for i in range(ESexpOp.shape[1]):
-                axes.plot(xAxisConversion(xParams), ESexpOp[:,i],
+                axes.plot(xscaled, ESexpOp[:,i],
                           label=f'{i+1}. ES', linestyle='-')
-            axes.set_xlabel(xParamsName+xParamUnitName)
+            axes.set_xlabel(f'{xParamName} [{xunit}]')
             axes.set_ylabel(OpName)
-            axes.set_xlim(left=xAxisConversion(xParams[0]))
+            axes.set_xlim(xscaled.min())
             axes.set_ylim((-1.1,1.1))
             axes.legend(fontsize='small')
             axes.grid(True)
@@ -239,29 +228,33 @@ def simulateEVvsBorEperp(path=None, plot=True, xAxis='B',
             figVecs = figVecss[j]
             basisName = bases[j]
             ESeigVecs = ESeigVecss[j]
-            name = 'eigenvectors of {} in {}-basis, {}={:.2f}GHz, {}={:.2f}°, {}={:.0f}°, {}={:.0f}°'.format(
-                r'$H_{ES}$', basisName, fixParamName, fixParam/1e9,
-                r'$\theta_B$', np.degrees(thetaB), r'$\phi_B$', np.degrees(phiB),
-                r'$\phi_\xi$',  np.degrees(phiE))
+            name = 'eigenvectors of {} in {}-basis, {}'.format(
+                r'$H_{ES}$', basisName, ''.join([
+                    getParamStr((key, value))+', '
+                    if key in ['thetaB', 'phiB', 'B', 'Eperp', 'phiE'] else ''
+                    for key, value in modeldict.items()
+                    ])[:-2]
+                )
             figVecs.suptitle(name)
             figVecs.set_tight_layout(True)
             for i in range(ESeigVecs.shape[1]):
                 axes = figVecs.add_subplot(NbrRows, NbrCols, i+1)
                 for idx in range(ESeigVecs.shape[2]):
-                    axes.plot(xAxisConversion(xParams), np.abs(ESeigVecs[:,i,idx])**2,
+                    axes.plot(xscaled, np.abs(ESeigVecs[:,i,idx])**2,
                               label=basisStateNames[bases[j]][idx+3],
                               linestyle=getmylinestyle(idx+3),
                               color=getmycolor(idx+3))
                 axes.set_title('{}. ES {}'.format(i+1, r'$|\psi_{%i}>$'%(i+1)), fontsize='small')
-                axes.set_xlabel(xParamsName+xParamUnitName)
+                axes.set_xlabel(f'{xParamName} [{xunit}]')
                 axes.set_ylabel(r'$\left|<basisstate|\psi_{%i}>\right|^2$'%(i+1))
-                axes.set_xlim(left=xAxisConversion(xParams[0]))
+                axes.set_xlim(xscaled.min())
                 axes.set_ylim((-0.05,1.05))
                 axes.legend(fontsize='small')
                 axes.grid(True)
     
     dic = {
-        xAxis+"s":          list(saveConversion(xParams)),
+        "xParamName":       xParamName,
+        "x":                list(x),
         "ESenergies":       [list(row) for row in ESenergies],
         "avgedESenergies":  [list(row) for row in avgESenergies],
         "orbESenergies":    [list(row) for row in ESorbenergies],
@@ -286,7 +279,7 @@ def simulateEVvsBorEperp(path=None, plot=True, xAxis='B',
     
     if path!=None:
         timestr = strftime("%Y-%m-%d_%H-%M-%S")
-        explanation = '_Eigen'
+        explanation = '_EigenVsParam'
         path = osjoin(path, timestr+explanation)
         # save plots:
         name='ESenergies'
@@ -330,7 +323,7 @@ def simulateEVvsBorEperp(path=None, plot=True, xAxis='B',
                           format='png', dpi=100,                           
                           )
         # save the data:
-        name='eigen_vs_'+xAxis+'.json'
+        name='EigenVsParam.json'
         pathandname = osjoin(path, name)
         with open(pathandname, 'w') as f:
             dump(dic, f)
@@ -338,7 +331,10 @@ def simulateEVvsBorEperp(path=None, plot=True, xAxis='B',
     
     if plot:
         plt.show()
-
+    elif path!=None:
+        for fig in [figEnergies, figExpS_z, figExpOrb, figVecsEZ, 
+                    figVecsZF, figVecsHF, figVecsZB, figVecsavgEZ]:
+            plt.close(fig)
     return dic
 
 
@@ -544,7 +540,9 @@ def simulatekmixvsT(path=None, plot=True, Tmax = 300, # unit: K
         
     if plot:
         plt.show()
-        
+    elif path!=None:
+        for fig in [fig1, fig2, fig3]:
+            plt.close(fig)
     return dic
 
 
@@ -663,7 +661,9 @@ def simulateReadoutVsParam(yAxis='C', path=None, plot=True,
              xParamName ='T', x=np.linspace(0, 300, 50),
              argsList = [(MEmodel, makeModelDict()),],
              integrationTime='optSNR', tauR=0, Delta_t=5e-9, N=4,
-             FWHM=1e6, sequDuration=1.5e-6+1e-6+1e-6):
+             FWHM=1e6, sequDuration=1.5e-6+1e-6+1e-6,
+             level1=0, level2=1,
+             ):
     """
     For a list of models/settings, compute a readout quantity on the y-axis as
     a function of a chosen parameter on the x-axis.
@@ -706,6 +706,11 @@ def simulateReadoutVsParam(yAxis='C', path=None, plot=True,
         Units: s. For optional parameters of the laser rise time tauR, Delta_t,
         and N, see makeStepsForLaserRise().
         By default, a simple rectangular pulse is used.
+    level1, level2 : int, optional
+        Indices of the levels between which a pi-pulse is applied to obtain
+        a readout-contrast. Which levels these are depends on the NVrateModels
+        used in argsList. For more information, see piPulse().
+        The pi-pulse fidelity is given by modeldict['piPulseFid'].
 
     Returns
     -------
@@ -733,7 +738,7 @@ def simulateReadoutVsParam(yAxis='C', path=None, plot=True,
             modeldict = deepcopy(argsList[i][1])
             for j in range(x.size):
                 modeldict[xParamName] = x[j]
-                y[i][j] = getInitFidelity_ms0(modelClass=modelClass,**modeldict)        
+                y[i][j] = getInitFidelity_ms0(modelClass=modelClass,**modeldict)
         name = r'GS initialization fidelity $m_s=0$'
         ylabel = r'amount $m_s=0$ [1]'
         yscale = lambda x: x
@@ -748,14 +753,14 @@ def simulateReadoutVsParam(yAxis='C', path=None, plot=True,
                 modeldict[xParamName] = x[j]
                 c,thistint,snr = getReadoutFidelity_ms0(integrationTime=integrationTime,
                     tauR=tauR, Delta_t=Delta_t, N=N,
-                    modelClass=modelClass,
+                    modelClass=modelClass, level1=level1, level2=level2,
                     **modeldict)
                 Cs[i][j] = c
                 SNRs[i][j] = snr
                 tints[i][j] = thistint
         y = SNRs
         y_alt = Cs
-        name = f'readout SNR, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns'
+        name = f'readout SNR, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns, levels={level1}-{level2}'
         name += '\n'+SNREquation
         ylabel = r'SNR [1]'
         yscale = lambda x: x
@@ -771,7 +776,7 @@ def simulateReadoutVsParam(yAxis='C', path=None, plot=True,
                 modeldict[xParamName] = x[j]
                 c,thistint,ref = getContrast(
                     integrationTime, tauR=tauR, Delta_t=Delta_t, N=N,
-                    modelClass=modelClass,
+                    modelClass=modelClass, level1=level1, level2=level2,
                     **modeldict)
                 sens = sensitivityGauss(c,thistint,ref,FWHM=FWHM,
                                         sequDuration=sequDuration)
@@ -783,7 +788,7 @@ def simulateReadoutVsParam(yAxis='C', path=None, plot=True,
         if yAxis=='Sens':
             y = Senss
             y_alt = Cs
-            name = f'Sensitivity, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns'
+            name = f'Sensitivity, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns, levels={level1}-{level2}'
             name += '\n'+sensitivityEquation+' at '
             name += rf'$FWHM$ = {FWHM/1e6:.1f}MHz, $t_s$={sequDuration*1e6:.1f}$\mu$s'
             ylabel = r'$\eta$ [$\frac{\mu T}{\sqrt{Hz}}$]'
@@ -791,20 +796,20 @@ def simulateReadoutVsParam(yAxis='C', path=None, plot=True,
         elif yAxis=='normSens':
             y = Senss
             y_alt = Cs
-            name = f'Normalized sensitivity, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns'
+            name = f'Normalized sensitivity, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns, levels={level1}-{level2}'
             name += '\n'+sensitivityEquation
             ylabel = r'$\eta$ [norm.]'
             yscale = lambda x: x/np.min(y)
         elif yAxis=='C':
             y = Cs
             y_alt = Senss
-            name = f'Contrast, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns'
+            name = f'Contrast, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns, levels={level1}-{level2}'
             ylabel = r'$C$ [%]'
             yscale = lambda x: x*100
         elif yAxis=='SNR':
             y = SNRs
             y_alt = Cs
-            name = f'SNR, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns'
+            name = f'SNR, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns, levels={level1}-{level2}'
             name += '\n'+SNREquation
             ylabel = r'SNR [1]'
             yscale = lambda x: x
@@ -881,6 +886,7 @@ def simulateReadoutVsParam(yAxis='C', path=None, plot=True,
         "tintMethod":       integrationTime, # not relevant for 'PL'  and 'initFid'
         "FWHM":             FWHM, # only relevant for 'Sens'
         "sequDuration":     sequDuration, # only relevant for 'Sens'
+        "piPulseLevels":    [level1, level2], # not relevant for 'PL'  and 'initFid'
         }
 
     if path!=None:            
@@ -888,13 +894,13 @@ def simulateReadoutVsParam(yAxis='C', path=None, plot=True,
         explanation = '_ReadoutvsParam'
         path = osjoin(path, timestr+explanation)
         # save plot:
-        name='2Dmap'
+        name='ReadoutvsParam'
         pathandname = osjoin(path, name)
         fig.savefig(ensure_dir('{}.png'.format(pathandname)),
                     format='png', dpi=100,                     
                     )
         # save the data:
-        name='2Dmap.json'
+        name='ReadoutvsParam.json'
         pathandname = osjoin(path, name)
         with open(pathandname, 'w') as f:
             dump(dic, f)
@@ -912,6 +918,7 @@ def simulate2DMap(zAxis='PL', path=None, plot=True,
              yParamName='T', y=np.linspace(0, 105, 50),
              integrationTime=250e-9, tauR=0, Delta_t=5e-9, N=4,
              FWHM=1e6, sequDuration=1.5e-6+1e-6+1e-6,
+             level1=0, level2=1,
              modelClass = MEmodel,
              **modeldict):
     """
@@ -957,6 +964,11 @@ def simulate2DMap(zAxis='PL', path=None, plot=True,
         Units: s. For optional parameters of the laser rise time tauR, Delta_t,
         and N, see makeStepsForLaserRise().
         By default, a simple rectangular pulse is used.
+    level1, level2 : int, optional
+        Indices of the levels between which a pi-pulse is applied to obtain
+        a readout-contrast. Which levels these are depends on the NVrateModels
+        used in argsList. For more information, see piPulse().
+        The pi-pulse fidelity is given by modeldict['piPulseFid'].
     modelClass : NVrateModel, optional
         Specify which rate model to use. Options:
         MEmode (default), HighTmodel, LowTmodel, SZmodel
@@ -1007,14 +1019,14 @@ def simulate2DMap(zAxis='PL', path=None, plot=True,
                 modeldict[yParamName] = yval
                 c,thistint,snr = getReadoutFidelity_ms0(integrationTime=integrationTime,
                     tauR=tauR, Delta_t=Delta_t, N=N,
-                    modelClass=modelClass,
+                    modelClass=modelClass, level1=level1, level2=level2,
                     **modeldict)
                 Cs[yi][xi] = c
                 SNRs[yi][xi] = snr
                 tints[yi][xi] = thistint
         z = SNRs
         z_alt = Cs
-        name = f'readout SNR, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns'+f', {modelClass.name}'
+        name = f'readout SNR, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns, levels={level1}-{level2}'+f', {modelClass.name}'
         name += '\n'+SNREquation
         zlabel = r'SNR [1]'
         zscale = lambda x: x
@@ -1029,7 +1041,7 @@ def simulate2DMap(zAxis='PL', path=None, plot=True,
                 modeldict[yParamName] = yval
                 c,thistint,ref = getContrast(
                     integrationTime, tauR=tauR, Delta_t=Delta_t, N=N,
-                    modelClass=modelClass,
+                    modelClass=modelClass, level1=level1, level2=level2,
                     **modeldict)
                 sens = sensitivityGauss(c,thistint,ref,FWHM=FWHM,
                                         sequDuration=sequDuration)
@@ -1041,7 +1053,7 @@ def simulate2DMap(zAxis='PL', path=None, plot=True,
         if zAxis=='Sens':
             z = Senss
             z_alt = Cs
-            name = f'Sensitivity, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns'+f', {modelClass.name}'
+            name = f'Sensitivity, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns, levels={level1}-{level2}'+f', {modelClass.name}'
             name += '\n'+sensitivityEquation+' at '
             name += rf'$FWHM$ = {FWHM/1e6:.1f}MHz, $t_s$={sequDuration*1e6:.1f}$\mu$s'
             zlabel = r'$\eta$ [$\frac{\mu T}{\sqrt{Hz}}$]'
@@ -1049,20 +1061,20 @@ def simulate2DMap(zAxis='PL', path=None, plot=True,
         elif zAxis=='normSens':
             z = Senss
             z_alt = Cs
-            name = f'Normalized sensitivity, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns'+f', {modelClass.name}'
+            name = f'Normalized sensitivity, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns, levels={level1}-{level2}'+f', {modelClass.name}'
             name += '\n'+sensitivityEquation
             zlabel = r'$\eta$ [norm.]'
             zscale = lambda x: x/np.min(z)
         elif zAxis=='C':
             z = Cs
             z_alt = Senss
-            name = f'Contrast, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns'+f', {modelClass.name}'
+            name = f'Contrast, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns, levels={level1}-{level2}'+f', {modelClass.name}'
             zlabel = r'$C$ [%]'
             zscale = lambda x: x*100
         elif zAxis=='SNR':
             z = SNRs
             z_alt = Cs
-            name = f'SNR, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns'+f', {modelClass.name}'
+            name = f'SNR, t_int={integrationTime}, tau_R={tauR*1e9:.1f}ns, levels={level1}-{level2}'+f', {modelClass.name}'
             name += '\n'+SNREquation
             zlabel = r'SNR [1]'
             zscale = lambda x: x
@@ -1135,6 +1147,7 @@ def simulate2DMap(zAxis='PL', path=None, plot=True,
         "tintMethod":       integrationTime, # not relevant for 'PL'  and 'initFid'
         "FWHM":             FWHM, # only relevant for 'Sens'
         "sequDuration":     sequDuration, # only relevant for 'Sens'
+        "piPulseLevels":    [level1, level2], # not relevant for 'PL'  and 'initFid'
         }
     
     if path!=None:            
@@ -1205,7 +1218,7 @@ def simulatePopTimeTrace(times, tsteps, ksteps, state0,
         Matrices that represent jump operators for the MEmodel.
         Readily available options are:
         LindbladOp_DecayOfEyToEx_HF, LindbladOp_DecayOfExToEy_HF, LindbladOp_DecayOfExToEx_HF,
-        LindbladOp_DecayOfEyToEy_HF, LindbladOp_GS_msm1_ypiPulse_EZ
+        LindbladOp_DecayOfEyToEy_HF, LindbladOp_GS_msp1_ypiPulse_EZ
     explainStr : str, optional
         String added to the figure plot title for clarity of the content.
     plotTrace : bool, optional
@@ -1441,7 +1454,9 @@ def simulatePopTimeTrace(times, tsteps, ksteps, state0,
 def simulatePulseVsParam(path=None, plot=True, stackedPlot=True,
              argsList = [(MEmodel, makeModelDict()),],
              laserOnTime = 2.0e-6, dt=2e-9, integrationTime='optSNR',
-             tauR=0, Delta_t=5e-9, N=4):
+             tauR=0, Delta_t=5e-9, N=4,
+             level1=0, level2=1,
+             ):
     """
     For a list of models/settings, compute a time-resolved pulsed readout
     sequence. Such sequences are the basis for the y/z-axis of simulateReadoutVsParam()
@@ -1476,6 +1491,11 @@ def simulatePulseVsParam(path=None, plot=True, stackedPlot=True,
         Units: s. For optional parameters of the laser rise time tauR, Delta_t,
         and N, see makeStepsForLaserRise().
         By default, a simple rectangular pulse is used.
+    level1, level2 : int, optional
+        Indices of the levels between which a pi-pulse is applied to obtain
+        a readout-contrast. Which levels these are depends on the NVrateModels
+        used in argsList. For more information, see piPulse().
+        The pi-pulse fidelity is given by modeldict['piPulseFid'].
 
     Returns
     -------
@@ -1495,7 +1515,7 @@ def simulatePulseVsParam(path=None, plot=True, stackedPlot=True,
         modelClass = argsList[i][0]
         PLPlotList[i][:] = twoPointODMRTrace(times, t1, t2, t3, t4,
                                 piPulseFirst=False,
-                                level1=0, level2=1,
+                                level1=level1, level2=level2,
                                 tauR=tauR, Delta_t=Delta_t, N=N,
                                 modelClass=modelClass,
                                 **modeldict)
@@ -1504,13 +1524,13 @@ def simulatePulseVsParam(path=None, plot=True, stackedPlot=True,
         # twice but it makes the code easier:
         # should use getContrastOf2pointODMRTrace on PLPlotList[i][:] otherwise...                
         CPlotList[i],tintPlotList[i],_ = getContrast(integrationTime, minLaserOnTime=t2-t1,
-                                   level1=0, level2=1,
+                                   level1=level1, level2=level2,
                                    tauR=tauR, Delta_t=Delta_t, N=N,
                                    modelClass=modelClass,
                                    **modeldict)
             
     if plot or path!=None:       
-        name = f'Pulsed laser Readout, tau_R={tauR*1e9:.1f}ns. Contrast for t_int={integrationTime}.'
+        name = f'Pulsed laser Readout, tau_R={tauR*1e9:.1f}ns, levels={level1}-{level2}. Contrast for t_int={integrationTime}.'
         fig = plt.figure(figsize=(10,8))
         fig.set_tight_layout(True)
         axes = fig.add_subplot(111)        
@@ -1570,6 +1590,7 @@ def simulatePulseVsParam(path=None, plot=True, stackedPlot=True,
         "tauR":             tauR,
         "Delta_t":          Delta_t,
         "N":                N,
+        "piPulseLevels":    [level1, level2],
         }
     
     if path!=None:
