@@ -7,7 +7,7 @@ from src.core import *
 
 
 def simulateEigenVsParam(path=None, plot=True,
-                         xParamName='B', x=np.linspace(0, 200e-3, 300),
+                         xParamName='B', x=np.linspace(0, 200e-3, 50),
                          plotES=True, plotGS=True, plotAvgES=True, plotOrbES=True,
                          **modeldict):
     """
@@ -62,9 +62,13 @@ def simulateEigenVsParam(path=None, plot=True,
     ESexpS_zOp = []
     ESexpOrbOp = []
     GSenergies = []
+    GSresonances = []
     GSeigVecs = []
+    GSexpS_zOp = []
     avgESenergies = []
     avgESeigVecs = []
+    avgESexpS_zOp = []
+    avgESresonances = []
     T_es_EZtoZF = T_EZtoZF[3:,3:]
     ESS_zOp = np.kron(Id2, S_z_opp)
     ESorbOp = np.kron(sigma_z, Id3)
@@ -81,7 +85,8 @@ def simulateEigenVsParam(path=None, plot=True,
             phiE = x[i]
         elif xParamName=='T':
             T = x[i]
-            
+        
+        # ES:
         T_es_HFtoEZ = get_T_HFtoEZ_withSS(
             B, thetaB, phiB, Eperp, phiE
             )[3:-1,3:-1]
@@ -118,6 +123,7 @@ def simulateEigenVsParam(path=None, plot=True,
             expectationValue(ESorbOp, vec).real for vec in ESeigVecsEZ[-1]
             ]))
 
+        # GS:
         eigvals, eigvecs = eigh(get_Hgs_EZ(
             B, thetaB, phiB, Eperp
             ))
@@ -125,6 +131,18 @@ def simulateEigenVsParam(path=None, plot=True,
 
         GSeigVecs.append(eigvecs.transpose())
         
+        GSexpS_zOp.append(np.array([
+            expectationValue(S_z_opp, vec).real for vec in GSeigVecs[-1]
+            ]))
+        
+        energies = GSenergies[-1]
+        spinvalues = GSexpS_zOp[-1]
+        spinvalues_sorted, energies_sorted = sortarrays(
+            spinvalues, energies, order='decr')
+        resonances = np.abs(np.diff(energies_sorted))
+        GSresonances.append(resonances) # f+, f-
+        
+        # avgES:
         if not highT_trf:
             avgHes_EZ = get_avgHes_EZ(
                 B, thetaB, phiB, Eperp, phiE
@@ -138,6 +156,18 @@ def simulateEigenVsParam(path=None, plot=True,
         avgESenergies.append(eigvals)
         avgESeigVecs.append(eigvecs.transpose())
         
+        avgESexpS_zOp.append(np.array([
+            expectationValue(S_z_opp, vec).real for vec in avgESeigVecs[-1]
+            ]))
+        
+        energies = avgESenergies[-1]
+        spinvalues = avgESexpS_zOp[-1]
+        spinvalues_sorted, energies_sorted = sortarrays(
+            spinvalues, energies, order='decr')
+        resonances = np.abs(np.diff(energies_sorted))
+        avgESresonances.append(resonances) # f+, f-
+        
+        
     ESenergies = np.array(ESenergies)
     ESorbenergies = np.array(ESorbenergies)
     ESeigVecsEZ = np.array(ESeigVecsEZ)
@@ -148,10 +178,15 @@ def simulateEigenVsParam(path=None, plot=True,
     ESexpOrbOp = np.array(ESexpOrbOp)
     GSenergies = np.array(GSenergies)
     GSeigVecs = np.array(GSeigVecs)
+    GSexpS_zOp = np.array(GSexpS_zOp)
+    GSresonances = np.array(GSresonances)
     avgESenergies = np.array(avgESenergies)
     avgESeigVecs = np.array(avgESeigVecs)
+    avgESexpS_zOp = np.array(avgESexpS_zOp)
+    avgESresonances = np.array(avgESresonances)
 
-    if plot or path!=None:    
+    if plot or path!=None:
+
         name = 'eigenenergies of Hamiltonian\n{}'.format(
             ''.join([
                 getParamStr((key, value))+', '
@@ -184,15 +219,43 @@ def simulateEigenVsParam(path=None, plot=True,
         axes.set_xlabel(f'{xParamName} [{xunit}]')
         axes.set_ylabel(r'$E$ [GHz]')
         axes.set_xlim(xscaled.min())
-        axes.legend(fontsize='small')
         axes.grid(True)
+        if plotOrbES or plotES or plotAvgES or plotGS:
+            axes.legend(fontsize='small')
+        
+        name = 'resonances of Hamiltonian\n{}'.format(
+            ''.join([
+                getParamStr((key, value))+', '
+                if key in ['thetaB', 'phiB', 'B', 'Eperp', 'phiE'] else ''
+                for key, value in modeldict.items()
+                ])[:-2]
+            )
+        figResonances = plt.figure()
+        figResonances.suptitle(name)
+        figResonances.set_tight_layout(True)
+        axes = figResonances.add_subplot(111)
+        resNames = [r'$f_+$',r'$f_-$']
+        if plotAvgES:
+            for i in range(avgESresonances.shape[1]):
+                axes.plot(xscaled, avgESresonances[:,i]/1e9,
+                          label=f'{resNames[i]} of avged ES', linestyle='dotted')
+        if plotGS:
+            for i in range(GSresonances.shape[1]):
+                axes.plot(xscaled, GSresonances[:,i]/1e9,
+                          label=f'{resNames[i]} of GS', linestyle='dashed')
+        axes.set_xlabel(f'{xParamName} [{xunit}]')
+        axes.set_ylabel(r'$E$ [GHz]')
+        axes.set_xlim(xscaled.min())
+        axes.grid(True)
+        if plotAvgES or plotGS:
+            axes.legend(fontsize='small')
         
         figExpS_z = plt.figure()
         figExpOrb = plt.figure()
         ops = ['S_z', 'Orb']
         for op in ops:
             ESexpOp = ESexpS_zOp if op=='S_z' else ESexpOrbOp
-            OpName = r'$<ES|\hat{S}_z|ES>$' if op=='S_z' else r'$<ES|\hat{\sigma}_z|ES>$'
+            OpName = r'$<\psi|\hat{S}_z|\psi>$' if op=='S_z' else r'$<\psi|\hat{\sigma}_z|\psi>$'
             figExp = figExpS_z if op=='S_z' else figExpOrb
             name = 'Expectation value {}\n{}'.format(
                 OpName, ''.join([
@@ -204,15 +267,30 @@ def simulateEigenVsParam(path=None, plot=True,
             figExp.suptitle(name)
             figExp.set_tight_layout(True)
             axes = figExp.add_subplot(111)
-            for i in range(ESexpOp.shape[1]):
-                axes.plot(xscaled, ESexpOp[:,i],
-                          label=f'{i+1}. ES', linestyle='-')
+            if plotES:
+                for i in range(ESexpOp.shape[1]):
+                    axes.plot(xscaled, ESexpOp[:,i],
+                              label=f'{i+1}. ES', linestyle='-')
+                    
+            if op=='S_z':
+                if plotAvgES:
+                    for i in range(avgESexpS_zOp.shape[1]):
+                        axes.plot(xscaled, avgESexpS_zOp[:,i],
+                                  label=f'{i+1}. avged ES', linestyle='dotted')
+                if plotGS:
+                    for i in range(GSexpS_zOp.shape[1]):
+                        axes.plot(xscaled, GSexpS_zOp[:,i],
+                                  label=f'{i+1}. GS', linestyle='dashed')
+                    
             axes.set_xlabel(f'{xParamName} [{xunit}]')
             axes.set_ylabel(OpName)
             axes.set_xlim(xscaled.min())
             axes.set_ylim((-1.1,1.1))
-            axes.legend(fontsize='small')
             axes.grid(True)
+            if op=='S_z' and (plotES or plotAvgES or plotGS):
+                axes.legend(fontsize='small')
+            elif op=='Orb' and plotES:
+                axes.legend(fontsize='small')
         
         NbrCols = 3
         NbrRows = 2
@@ -229,7 +307,7 @@ def simulateEigenVsParam(path=None, plot=True,
             basisName = bases[j]
             ESeigVecs = ESeigVecss[j]
             name = 'eigenvectors of {} in {}-basis, {}'.format(
-                r'$H_{ES}$', basisName, ''.join([
+                r'$H_{ES}$' if not basisName=='avgEZ' else r'$H$', basisName, ''.join([
                     getParamStr((key, value))+', '
                     if key in ['thetaB', 'phiB', 'B', 'Eperp', 'phiE'] else ''
                     for key, value in modeldict.items()
@@ -251,14 +329,32 @@ def simulateEigenVsParam(path=None, plot=True,
                 axes.set_ylim((-0.05,1.05))
                 axes.legend(fontsize='small')
                 axes.grid(True)
+                
+            if bases[j]=='avgEZ' and plotGS:
+                for i2 in range(GSeigVecs.shape[1]):
+                    axes = figVecs.add_subplot(NbrRows, NbrCols, i2+1+i+1)
+                    for idx2 in range(GSeigVecs.shape[2]):
+                        axes.plot(xscaled, np.abs(GSeigVecs[:,i2,idx2])**2,
+                                  label=basisStateNames[bases[j]][idx2],
+                                  linestyle=getmylinestyle(idx2),
+                                  color=getmycolor(idx2))
+                    axes.set_title('{}. GS {}'.format(i2+1, r'$|\psi_{%i}>$'%(i2+1)), fontsize='small')
+                    axes.set_xlabel(f'{xParamName} [{xunit}]')
+                    axes.set_ylabel(r'$\left|<basisstate|\psi_{%i}>\right|^2$'%(i2+1))
+                    axes.set_xlim(xscaled.min())
+                    axes.set_ylim((-0.05,1.05))
+                    axes.legend(fontsize='small')
+                    axes.grid(True)
     
     dic = {
         "xParamName":       xParamName,
         "x":                list(x),
         "ESenergies":       [list(row) for row in ESenergies],
         "avgedESenergies":  [list(row) for row in avgESenergies],
+        "avgESresonances":  [list(row) for row in avgESresonances],
         "orbESenergies":    [list(row) for row in ESorbenergies],
         "GSenergies":       [list(row) for row in GSenergies],
+        "GSresonances":     [list(row) for row in GSresonances],
         "ES_EZBasis_names": basisStateNames['EZ'][3:-1],
         "ESeigVecs_EZBasis": [[[str(val) for val in col] for col in row] for row in ESeigVecsEZ],
         "ES_ZFBasis_names": basisStateNames['ZF'][3:-1],        
@@ -272,7 +368,9 @@ def simulateEigenVsParam(path=None, plot=True,
         "GS_EZBasis_names": basisStateNames['EZ'][0:3],
         "GSeigVecs_EZBasis": [[[str(val) for val in col] for col in row] for row in GSeigVecs],
         "ESeigVecs_ExpectVal_S_z": [list(row) for row in ESexpS_zOp],
+        "avgESeigVecs_ExpectVal_S_z": [list(row) for row in avgESexpS_zOp],
         "ESeigVecs_ExpectVal_Orb": [list(row) for row in ESexpOrbOp],
+        "GSeigVecs_ExpectVal_S_z": [list(row) for row in GSexpS_zOp],
         "TRF":              highT_trf, # also in params['highT_trf']
         "params":           modeldict,
         }
@@ -282,9 +380,14 @@ def simulateEigenVsParam(path=None, plot=True,
         explanation = '_EigenVsParam'
         path = osjoin(path, timestr+explanation)
         # save plots:
-        name='ESenergies'
+        name='Energies'
         pathandname = osjoin(path, name)
         figEnergies.savefig(ensure_dir('{}.png'.format(pathandname)),
+                          format='png', dpi=100,
+                          )
+        name='Resonances'
+        pathandname = osjoin(path, name)
+        figResonances.savefig(ensure_dir('{}.png'.format(pathandname)),
                           format='png', dpi=100,
                           )
         name='ESeigVecs_ExpectVal_S_z'
@@ -330,9 +433,16 @@ def simulateEigenVsParam(path=None, plot=True,
         print(f'Saved to {path}')
     
     if plot:
+        if plotES==False:
+            for fig in [figExpOrb, figVecsEZ, figVecsZF, figVecsHF, figVecsZB]:
+                plt.close(fig)
+        
+        if plotAvgES==False and plotGS==False:
+            for fig in [figVecsavgEZ, figResonances]:
+                plt.close(fig)
         plt.show()
-    elif path!=None:
-        for fig in [figEnergies, figExpS_z, figExpOrb, figVecsEZ, 
+    elif path!=None: # close all figures here if plot=False and saved, since too many.
+        for fig in [figEnergies, figResonances, figExpS_z, figExpOrb, figVecsEZ, 
                     figVecsZF, figVecsHF, figVecsZB, figVecsavgEZ]:
             plt.close(fig)
     return dic

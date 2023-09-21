@@ -21,6 +21,7 @@ def getIndx(value, array):
 def sortarrays(sortarray, *sortaccordingly, order='decr'):
     """
     input: any number of np.arrays or lists
+    
     output: all arrays are sorted in the same manner and according to values
     in first array.
     return tuple of np.arrays, first element is the sorted sortarray.
