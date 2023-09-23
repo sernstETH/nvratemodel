@@ -3430,7 +3430,9 @@ def piPulse(state, level1=0, level2=1, piPulseFid=1.0):
     """
     Apply an instantaneous, pi-pulse between the levels with index level1 and
     level2.
-    Which levels these are depends on the state.
+    Which levels these are depends on the state. Thus, one should make sure that
+    state is always in EIG basis. This is natively the case for classical models,
+    but for MEmodel, one has to do a basis transformation first and after piPulse.
     
     The fidelity of the pi-pulse piPulseFid is in [0, 1.0].
     
@@ -3438,13 +3440,13 @@ def piPulse(state, level1=0, level2=1, piPulseFid=1.0):
     ----------
     state : numpy.ndarray
         Depending on the NV model, this is a vector in EIG basis for classical 
-        rate models or a density matrix in EZ basis for the MEmodel.   
+        rate models or a density matrix in (ideally) EIG basis for the MEmodel.   
     
     Returns
     -------
     state : numpy.ndarray
         Depending on the NV model, this is a vector in EIG basis for classical 
-        rate models or a density matrix in EZ basis for the MEmodel.
+        rate models or a density matrix in (ideally) EIG basis for the MEmodel.
     """
     if state.ndim==2: # MEmodel in use:
         statenew = np.copy(state).astype(np.complex128) # required for python 2.7
@@ -3752,6 +3754,13 @@ def twoPointODMRTrace(times, t1, t2, t3, t4,
         Default False. If piPulseFirst=True, the pi pulse is applied right to
         state0 and not after the first laser pulse.
         For more information on level1, level2 see piPulse().
+        
+    level1, level2 : int, optional
+        Indices of the levels in EIG basis between which the pi-pulse is applied
+        to obtain the contrast. Which levels these are depends on the modeldict
+        setting. You can use simulateEigenVsParam() to see the spin nature of
+        the EIG levels.
+        The pi-pulse fidelity is given by modeldict['piPulseFid'].
     
     tauR : float, optional
         Units: s. For optional parameters of the laser rise time tauR, Delta_t,
@@ -3824,16 +3833,30 @@ def twoPointODMRTrace(times, t1, t2, t3, t4,
     
     idx=np.argmax(times>t3)-1
     thistimes = times[:idx]
+    
+    if modelClass.name=='MEmodel':
+        # convert the state (EZ basis for MEmodel) to the EIG basis:
+        thismodel = ksteps1[0]
+        _=thismodel.population(state0,'EIG') # to create thismodel.T_EIGtoEZ_withSS
+        state0_EIG = basisTrafo(state0, thismodel.T_EIGtoEZ_withSS,
+                                T_old_to_new=thismodel.T_EZtoEIG_withSS)
+        # apply a state swap:
+        state_EIG = piPulse(state0_EIG, level1=level1, level2=level2, 
+                    piPulseFid=piPulseFid)
+        # convert the EIG state back to the EZ basis of MEmodel states:
+        state0_pi = basisTrafo(state_EIG, thismodel.T_EZtoEIG_withSS,
+                               T_old_to_new=thismodel.T_EIGtoEZ_withSS)
+    else: # classical models use EIG basis natively
+        state0_pi = piPulse(state0, level1=level1, level2=level2,
+                            piPulseFid=piPulseFid)
+    
     _, _, PLs1, _ = calcTimeTrace(thistimes, tsteps1, ksteps1,
-                                      state0 if not piPulseFirst else piPulse(
-                                          state0, level1=level1, level2=level2, piPulseFid=piPulseFid),
+                                      state0 if not piPulseFirst else state0_pi,
                                       basisName=None,
                                       )
     thistimes = times[idx:]
     _, _, PLs2, _ = calcTimeTrace(thistimes, tsteps2, ksteps2,
-                                      piPulse(
-                                          state0, level1=level1, level2=level2, piPulseFid=piPulseFid
-                                          ) if not piPulseFirst else state0,
+                                      state0_pi if not piPulseFirst else state0,
                                       basisName=None,
                                       )
     pls = np.concatenate((PLs1, PLs2))
@@ -4024,8 +4047,10 @@ def getContrast(integrationTime, minLaserOnTime=1.5e-6, tstepsize=1e-9,
         Size of time steps used to evaluate the PL traces on. Unit: s.
         
     level1, level2 : int, optional
-        Indices of the levels between which the pi-pulse is applied to obtain
-        the contrast. Which levels these are depends on the state0.
+        Indices of the levels in EIG basis between which the pi-pulse is applied
+        to obtain the contrast. Which levels these are depends on the modeldict
+        setting. You can use simulateEigenVsParam() to see the spin nature of
+        the EIG levels.
         The pi-pulse fidelity is given by modeldict['piPulseFid'].
         
     tauR : float, optional
@@ -4095,8 +4120,24 @@ def getContrast(integrationTime, minLaserOnTime=1.5e-6, tstepsize=1e-9,
     PLs = []
     times = np.arange(0, tend, tstepsize)
     for piPulseFirst in [False, True]: # ms=0, ms=1 (assuming good init in state0)
-        state = piPulse(state0, level1=level1, level2=level2, 
-                        piPulseFid=piPulseFid) if piPulseFirst else state0
+        if not piPulseFirst:
+            state = state0
+        else:
+            if modelClass.name=='MEmodel':
+                # convert the state (EZ basis for MEmodel) to the EIG basis:
+                thismodel = ksteps[0]
+                _=thismodel.population(state0,'EIG') # to create thismodel.T_EIGtoEZ_withSS
+                state0_EIG = basisTrafo(state0, thismodel.T_EIGtoEZ_withSS,
+                                        T_old_to_new=thismodel.T_EZtoEIG_withSS)
+                # apply a state swap:
+                state_EIG = piPulse(state0_EIG, level1=level1, level2=level2, 
+                            piPulseFid=piPulseFid)
+                # convert the EIG state back to the EZ basis of MEmodel states:
+                state = basisTrafo(state_EIG, thismodel.T_EZtoEIG_withSS,
+                                        T_old_to_new=thismodel.T_EIGtoEZ_withSS)
+            else: # classical models use EIG basis natively
+                state = piPulse(state0, level1=level1, level2=level2, 
+                            piPulseFid=piPulseFid)
         _, _, pls, _ = calcTimeTrace(times, tsteps, ksteps, state,
                                             basisName=None,
                                             )

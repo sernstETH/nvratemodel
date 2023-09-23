@@ -78,6 +78,7 @@ def run(path=None):
     # Note: jumpOps only work with MEmodel, for classical models one has to 
     # run savePopTimeTrace() twice with the respective start states: once with
     # and once without a pi-pulse piPulse(state0) applied.
+    # NOTE: this is only a correct pi-pulse if EZ basis has same states as EIG basis in the GS.
     jumpTimes = [tsteps[-3]-0.2e-6,] # unit: s
     jumpOps = [LindbladOp_GS_msp1_ypiPulse_EZ,]
 

@@ -817,9 +817,10 @@ def simulateReadoutVsParam(yAxis='C', path=None, plot=True,
         and N, see makeStepsForLaserRise().
         By default, a simple rectangular pulse is used.
     level1, level2 : int, optional
-        Indices of the levels between which a pi-pulse is applied to obtain
-        a readout-contrast. Which levels these are depends on the NVrateModels
-        used in argsList. For more information, see piPulse().
+        Indices of the levels in EIG basis between which the pi-pulse is applied
+        to obtain the contrast. Which levels these are depends on the modeldict
+        setting. You can use simulateEigenVsParam() to see the spin nature of
+        the EIG levels. For more information, see piPulse().
         The pi-pulse fidelity is given by modeldict['piPulseFid'].
 
     Returns
@@ -1075,9 +1076,10 @@ def simulate2DMap(zAxis='PL', path=None, plot=True,
         and N, see makeStepsForLaserRise().
         By default, a simple rectangular pulse is used.
     level1, level2 : int, optional
-        Indices of the levels between which a pi-pulse is applied to obtain
-        a readout-contrast. Which levels these are depends on the NVrateModels
-        used in argsList. For more information, see piPulse().
+        Indices of the levels in EIG basis between which the pi-pulse is applied
+        to obtain the contrast. Which levels these are depends on the modeldict
+        setting. You can use simulateEigenVsParam() to see the spin nature of
+        the EIG levels. For more information, see piPulse().
         The pi-pulse fidelity is given by modeldict['piPulseFid'].
     modelClass : NVrateModel, optional
         Specify which rate model to use. Options:
@@ -1602,9 +1604,10 @@ def simulatePulseVsParam(path=None, plot=True, stackedPlot=True,
         and N, see makeStepsForLaserRise().
         By default, a simple rectangular pulse is used.
     level1, level2 : int, optional
-        Indices of the levels between which a pi-pulse is applied to obtain
-        a readout-contrast. Which levels these are depends on the NVrateModels
-        used in argsList. For more information, see piPulse().
+        Indices of the levels in EIG basis between which the pi-pulse is applied
+        to obtain the contrast. Which levels these are depends on the modeldict
+        setting. You can use simulateEigenVsParam() to see the spin nature of
+        the EIG levels. For more information, see piPulse().
         The pi-pulse fidelity is given by modeldict['piPulseFid'].
 
     Returns
