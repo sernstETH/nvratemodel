@@ -12,7 +12,7 @@ def simulateEigenVsParam(path=None, plot=True,
                          **modeldict):
     """
     Compute the eigenvalues and eigenvectors (EV) of the Hamiltonian as a 
-    function of xAxis (magnetic field or strain/el. field).
+    function of xParamName.
 
     Parameters
     ----------
@@ -125,7 +125,7 @@ def simulateEigenVsParam(path=None, plot=True,
 
         # GS:
         eigvals, eigvecs = eigh(get_Hgs_EZ(
-            B, thetaB, phiB, Eperp
+            B, thetaB, phiB, Eperp, T
             ))
         GSenergies.append(eigvals)
 
@@ -226,11 +226,11 @@ def simulateEigenVsParam(path=None, plot=True,
         name = 'resonances of Hamiltonian\n{}'.format(
             ''.join([
                 getParamStr((key, value))+', '
-                if key in ['thetaB', 'phiB', 'B', 'Eperp', 'phiE'] else ''
+                if key in ['thetaB', 'phiB', 'B', 'Eperp', 'phiE', 'T'] else ''
                 for key, value in modeldict.items()
                 ])[:-2]
             )
-        figResonances = plt.figure()
+        figResonances = plt.figure(figsize=(7,5))
         figResonances.suptitle(name)
         figResonances.set_tight_layout(True)
         axes = figResonances.add_subplot(111)
@@ -1665,7 +1665,7 @@ def simulatePulseVsParam(path=None, plot=True, stackedPlot=True,
                           linestyle=getmylinestyle(i),
                           color=getmycolor(i, len(argsList)),
                           label='{} model\n{}'.format(
-                              argsList[i][0], string if string!='' else 'default'),
+                              argsList[i][0].name, string if string!='' else 'default'),
                           )
             else:
                 axes.plot((times[0:t2sIdx-t1sIdx] - t1)*1e9,

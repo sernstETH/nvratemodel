@@ -36,7 +36,7 @@ jitOpt = nb.jit(nopython=True) if NUMBA_OPT else lambda x: x
 
 
 # Load globally accessible default NV center parameters:
-from GLOBAL import Dgs, Des_para, Des_perp, Les_para, Les_perp, gl, \
+from GLOBAL import Dgs, Des_para, Des_perp, Les_para, Les_perp, gl, d1, d2, d3, d4, d5, \
     convfactor_GSandES, diamondDebyeEnergy, PlakhotnikCutoffEnergy, \
     AbtewCutoffEnergy, kE12OVERkA1, \
     Eperp_default, phiE_default, B_default, thetaB_default, phiB_default, \
@@ -350,8 +350,11 @@ def polar2cart(r, theta, phi):
     )
 
 
-
-Hgs_EZ = Dgs*(np.dot(S_z_opp, S_z_opp) - 1*(1+1)/3*Id3) # Doherty2013: equ(1)
+@jitOpt
+def Hgs_EZ(T):
+    Dgs_T =  Dgs + d1*T + d2*T**2 + d3*T**3 + d4*T**4 + d5*T**5
+    Hgs_EZ = Dgs_T*(np.dot(S_z_opp, S_z_opp) - 1*(1+1)/3*Id3) # Doherty2013: equ(1)
+    return Hgs_EZ
 
 @jitOpt
 def Vgs_EZ(Bx, By, Bz, Ex, Ey, Ez): # Doherty2013: equ(2)
@@ -402,11 +405,15 @@ def Ves_EZ(Bx, By, Bz, Ex, Ey, Ez): # Doherty2013: equ(4)
     return Ves_EZ
 
 @jitOpt
-def get_Hgs_EZ(B, thetaB, phiB, Eperp):
+def get_Hgs_EZ(B, thetaB, phiB, Eperp, T):
     """
     Unit of B: T
+    
     Unit of Eperp: Hz
+    
     Unit of angles: RAD
+    
+    Unit of T: K
     
     Unit of returned Hamiltonian: [Hz]
     
@@ -416,8 +423,11 @@ def get_Hgs_EZ(B, thetaB, phiB, Eperp):
     the GS and ES.
     """
     Bx, By, Bz = polar2cart(B_T2Hz(B), thetaB, phiB)
-    # Ex, Ey, Ez = polar2cart(Eperp, np.radians(90), np.radians(0))
-    HamiltonianMatrix_gs_EZ = Hgs_EZ + Vgs_EZ(Bx, By, Bz, 0., 0., 0.)
+    # strain/el. field Eperp is in-plane. Along NV axis it is ignored.
+    # The following two lines can be used to also model the Eperp effect on the GS:
+    # strainScalingFactorForGS = XXX # convert the (~GHz) strain of the ES to the (~MHz) strain in the GS.
+    # Ex, Ey, Ez = polar2cart(Eperp, np.radians(90), np.radians(0))*strainScalingFactorForGS
+    HamiltonianMatrix_gs_EZ = Hgs_EZ(T) + Vgs_EZ(Bx, By, Bz, 0., 0., 0.)
     return HamiltonianMatrix_gs_EZ
 
 @jitOpt
@@ -441,13 +451,15 @@ def get_Hes_EZ(B, thetaB, phiB, Eperp, phiE):
     return HamiltonianMatrix_es_EZ
 
 @jitOpt
-def get_H_EZ(B, thetaB, phiB, Eperp, phiE, GStoESsplitting=0e9):
+def get_H_EZ(B, thetaB, phiB, Eperp, phiE, T, GStoESsplitting=0e9):
     """
     Unit of B: T
     
     Unit of Eperp: Hz
     
     Unit of angles: RAD
+    
+    Unit of T: K
     
     Unit of returned Hamiltonian: [Hz]
     
@@ -456,7 +468,7 @@ def get_H_EZ(B, thetaB, phiB, Eperp, phiE, GStoESsplitting=0e9):
     Note: the same conversion (g-factor) of GHz to T for B fields is used in
     the GS and ES.
     """
-    HamiltonianMatrix_gs_EZ = get_Hgs_EZ(B, thetaB, phiB, Eperp)
+    HamiltonianMatrix_gs_EZ = get_Hgs_EZ(B, thetaB, phiB, Eperp, T)
     HamiltonianMatrix_gs_EZ = (HamiltonianMatrix_gs_EZ 
                                - np.diag(np.ones((3), dtype = np.complex128)
                                          )*GStoESsplitting
@@ -466,7 +478,7 @@ def get_H_EZ(B, thetaB, phiB, Eperp, phiE, GStoESsplitting=0e9):
     return H_EZ
 
 @jitOpt
-def get_H_EZ_withSS(B, thetaB, phiB, Eperp, phiE,
+def get_H_EZ_withSS(B, thetaB, phiB, Eperp, phiE, T,
                     GStoESsplitting=0e9,  GStoSSsplitting=0e9):
     """
     Get the NV centers low temperature Hamiltonian of a 10 level model.
@@ -478,6 +490,8 @@ def get_H_EZ_withSS(B, thetaB, phiB, Eperp, phiE,
     
     Unit of angles: RAD
     
+    Unit of T: K
+    
     Unit of returned Hamiltonian: [Hz]
     
     So far Eperp is ignored for the GS!
@@ -485,7 +499,7 @@ def get_H_EZ_withSS(B, thetaB, phiB, Eperp, phiE,
     Note: the same conversion (g-factor) of GHz to T for B fields is used in
     the GS and ES.
     """
-    H_EZ = get_H_EZ(B, thetaB, phiB, Eperp, phiE, GStoESsplitting=GStoESsplitting)
+    H_EZ = get_H_EZ(B, thetaB, phiB, Eperp, phiE, T, GStoESsplitting=GStoESsplitting)
     H_EZ_SS = addSSDim_entry(H_EZ, -(GStoESsplitting-GStoSSsplitting) )
     return H_EZ_SS
 
@@ -543,13 +557,15 @@ def get_avgHes_EZ(B, thetaB, phiB, Eperp, phiE):
     return avgHes_EZ
 
 @jitOpt
-def get_avgH_EZ(B, thetaB, phiB, Eperp, phiE, GStoESsplitting=0e9):
+def get_avgH_EZ(B, thetaB, phiB, Eperp, phiE, T, GStoESsplitting=0e9):
     """
     Unit of B: T
     
     Unit of Eperp: Hz
     
     Unit of angles: RAD
+    
+    Unit of T: K
     
     Unit of returned Hamiltonian: [Hz]
     
@@ -558,14 +574,14 @@ def get_avgH_EZ(B, thetaB, phiB, Eperp, phiE, GStoESsplitting=0e9):
     Note: the same conversion (g-factor) of GHz to T for B fields is used in
     the GS and ES.
     """
-    HamiltonianMatrix_gs_EZ = get_Hgs_EZ(B, thetaB, phiB, Eperp)
+    HamiltonianMatrix_gs_EZ = get_Hgs_EZ(B, thetaB, phiB, Eperp, T)
     HamiltonianMatrix_gs_EZ = HamiltonianMatrix_gs_EZ - np.diag(np.ones((3), dtype = np.complex128))*GStoESsplitting
     avgHes_EZ = get_avgHes_EZ(B, thetaB, phiB, Eperp, phiE)
     avgH_EZ = compositeDiagMatrix(HamiltonianMatrix_gs_EZ, avgHes_EZ) # See Doherty2013 p.16 why this gives the room temperature averaged ES Hamiltonian.
     return avgH_EZ
 
 @jitOpt
-def get_avgH_EZ_withSS(B, thetaB, phiB, Eperp, phiE, GStoESsplitting=0e9, GStoSSsplitting=0e9):
+def get_avgH_EZ_withSS(B, thetaB, phiB, Eperp, phiE, T, GStoESsplitting=0e9, GStoSSsplitting=0e9):
     """
     Get the NV centers room temperature Hamiltonian of a 7 level model.
     For details see https://arxiv.org/abs/2304.02521.
@@ -576,6 +592,8 @@ def get_avgH_EZ_withSS(B, thetaB, phiB, Eperp, phiE, GStoESsplitting=0e9, GStoSS
     
     Unit of angles: RAD
     
+    Unit of T: K
+    
     Unit of returned Hamiltonian: [Hz]
     
     So far Eperp is ignored for the GS!
@@ -583,7 +601,7 @@ def get_avgH_EZ_withSS(B, thetaB, phiB, Eperp, phiE, GStoESsplitting=0e9, GStoSS
     Note: the same conversion (g-factor) of GHz to T for B fields is used in
     the GS and ES.
     """
-    HamiltonianMatrix_gs_EZ = get_Hgs_EZ(B, thetaB, phiB, Eperp)
+    HamiltonianMatrix_gs_EZ = get_Hgs_EZ(B, thetaB, phiB, Eperp, T)
     HamiltonianMatrix_gs_EZ = (HamiltonianMatrix_gs_EZ 
                                - np.diag(np.ones((3), dtype = np.complex128)
                                          )*GStoESsplitting
@@ -724,12 +742,14 @@ def get_avgHTRF_EZ(B, thetaB, phiB, Eperp, phiE, T):
     
     Unit of angles: RAD
     
+    Unit of T: K
+    
     Unit of returned Hamiltonian: [Hz]
     
     Note: the same conversion (g-factor) of GHz to T for B fields is used in
     the GS and ES.
     """
-    HamiltonianMatrix_gs_EZ = get_Hgs_EZ(B, thetaB, phiB, Eperp)
+    HamiltonianMatrix_gs_EZ = get_Hgs_EZ(B, thetaB, phiB, Eperp, T)
     avgHes_EZ = get_avgHesTRF_EZ(B, thetaB, phiB, Eperp, phiE, T)
     avgH_EZ = compositeDiagMatrix(HamiltonianMatrix_gs_EZ, avgHes_EZ) # See Doherty2013 p.16 why this gives the room temperature averaged ES Hamiltonian.
     return avgH_EZ
@@ -749,12 +769,14 @@ def get_avgHTRF_EZ_withSS(B, thetaB, phiB, Eperp, phiE, T,
     
     Unit of angles: RAD
     
+    Unit of T: K
+    
     Unit of returned Hamiltonian: [Hz]
     
     Note: the same conversion (g-factor) of GHz to T for B fields is used in
     the GS and ES.
     """
-    HamiltonianMatrix_gs_EZ = get_Hgs_EZ(B, thetaB, phiB, Eperp)
+    HamiltonianMatrix_gs_EZ = get_Hgs_EZ(B, thetaB, phiB, Eperp, T)
     HamiltonianMatrix_gs_EZ = (HamiltonianMatrix_gs_EZ 
                                - np.diag(np.ones((3), dtype = np.complex128)
                                          )*GStoESsplitting
@@ -1504,6 +1526,7 @@ LindbladOp_DecayOfEyToEy_HF = np.array([
 
 LindbladOp_GS_msp1_ypiPulse_EZ = np.zeros((10,10), dtype = np.complex128)
 LindbladOp_GS_msp1_ypiPulse_EZ[:2,:2] = sigma_y # same as level1=0, level2=1 in piPulse()
+# NOTE: this is only a correct pi-pulse if EZ basis has same states as EIG basis in the GS.
 
 def makeCoherentLindbladOpList(
                 T = T_default,
@@ -1670,10 +1693,9 @@ def getsteadystate_byEig(L):
 ##################################
 
 @jitOpt
-def getProb_EIGinX(B, thetaB, phiB, Eperp, phiE, T_XtoEZ_withSS,
+def getProb_EIGinX(B, thetaB, phiB, Eperp, phiE, T, T_XtoEZ_withSS,
                    avgedES=False,
                    highT_trf = False, # needed for avgedES only.
-                   T = 0., # needed for highT_trf with avgedES only.
                    ):
     """
     Return probability matrix for finding eigenstates (EIG basis) in the
@@ -1688,11 +1710,11 @@ def getProb_EIGinX(B, thetaB, phiB, Eperp, phiE, T_XtoEZ_withSS,
     i.e. X is automatically assumed to be EZ.
     """
     if not avgedES:
-        H_EZ = get_H_EZ_withSS(B, thetaB, phiB, Eperp, phiE)
+        H_EZ = get_H_EZ_withSS(B, thetaB, phiB, Eperp, phiE, T)
         T_EIGtoX_withSS = get_T_EIGtoX(basisTrafo(H_EZ, T_XtoEZ_withSS))
     else: # assume X=EZ
         if not highT_trf:
-            H_EZ = get_avgH_EZ_withSS(B, thetaB, phiB, Eperp, phiE)
+            H_EZ = get_avgH_EZ_withSS(B, thetaB, phiB, Eperp, phiE, T)
         else:
             H_EZ = get_avgHTRF_EZ_withSS(B, thetaB, phiB, Eperp, phiE, T)
         T_EIGtoX_withSS = get_T_EIGtoX(H_EZ)
@@ -1736,10 +1758,9 @@ def averageRateMatrix_EZ(k_EZ):
     return avgedk_EZ
 
 @jitOpt
-def getRateMatrix_EIG(B, thetaB, phiB, Eperp, phiE, T_XtoEZ_withSS, k_X,
+def getRateMatrix_EIG(B, thetaB, phiB, Eperp, phiE, T, T_XtoEZ_withSS, k_X,
                       avgedES=False,
                       highT_trf = False, # needed for avgedES only.
-                      T = 0., # needed for highT_trf with avgedES only.
                       ):
     """
     Based on the classical rate matrix k_X in X basis, get the rate matrix k_EIG
@@ -1753,9 +1774,9 @@ def getRateMatrix_EIG(B, thetaB, phiB, Eperp, phiE, T_XtoEZ_withSS, k_X,
     
     NOTE: this is not a basis change, it is not invertible and transitive.
     """
-    prob_EIGinX_withSS = getProb_EIGinX(B, thetaB, phiB, Eperp, phiE,
+    prob_EIGinX_withSS = getProb_EIGinX(B, thetaB, phiB, Eperp, phiE, T,
                                         T_XtoEZ_withSS,
-                                        avgedES=avgedES, highT_trf=highT_trf, T=T)
+                                        avgedES=avgedES, highT_trf=highT_trf)
     if avgedES:
         # assume: rate matrix is in EZ: T_EZtoEZ=Id and k_EZ
         k_X = averageRateMatrix_EZ(k_X)
@@ -2260,7 +2281,7 @@ def formatParamValue(modeldict_item):
     if key[:len('T')] == 'T':
         string = f'{scaledValue:.1f}{unitName}'
     elif key[:len('B')] == 'B':
-        string = f'{scaledValue:.0f}{unitName}'
+        string = f'{scaledValue:.1f}{unitName}'
     elif key[:len('Eperp')] == 'Eperp':
         string = f'{scaledValue:.1f}{unitName}'
     elif key[:len('theta')] == 'theta' or key[:len('phi')] == 'phi':
@@ -2620,7 +2641,7 @@ class MEmodel(NVrateModel):
                           highT_trf = highT_trf,
                           )
         
-        self.H = get_H_EZ_withSS(B, thetaB, phiB, Eperp, phiE)
+        self.H = get_H_EZ_withSS(B, thetaB, phiB, Eperp, phiE, T)
         # NOTE: when using self.H, a factor of *2*pi is needed to convert the units of the Hamiltonian from Hz to rad/s.
         self.emittingLevelIdxs = [3, 4, 5, 6, 7, 8] # just for information purposes.
 
@@ -2897,7 +2918,7 @@ class LowTmodel(NVrateModel):
                                         highT_trf = highT_trf,
                                         )
         
-        self.H = get_H_EZ_withSS(B, thetaB, phiB, Eperp, phiE)
+        self.H = get_H_EZ_withSS(B, thetaB, phiB, Eperp, phiE, T)
         # NOTE: when using self.H, a factor of *2*pi is needed to convert the units of the Hamiltonian from Hz to rad/s.
 
         self.avgedES = False # indicates whether a classical rate model is based on the averaged Hamiltonian.
@@ -3158,7 +3179,7 @@ class SZmodel(LowTmodel):
                                         highT_trf = highT_trf,
                                         )
         
-        self.H = get_H_EZ_withSS(B, thetaB, phiB, Eperp, phiE)
+        self.H = get_H_EZ_withSS(B, thetaB, phiB, Eperp, phiE, T)
         # NOTE: when using self.H, a factor of *2*pi is needed to convert the units of the Hamiltonian from Hz to rad/s.
         
         self.emittingLevelIdxs = [3, 4, 5, 6, 7, 8] # just for information purposes.
@@ -3263,7 +3284,7 @@ class HighTmodel(LowTmodel):
                                         )
         
         if not highT_trf:
-            self.H = get_avgH_EZ_withSS(B, thetaB, phiB, Eperp, phiE)
+            self.H = get_avgH_EZ_withSS(B, thetaB, phiB, Eperp, phiE, T)
         else:
             self.H = get_avgHTRF_EZ_withSS(B, thetaB, phiB, Eperp, phiE, T)
         # NOTE: when using self.H, a factor of *2*pi is needed to convert the units of the Hamiltonian from Hz to rad/s.     

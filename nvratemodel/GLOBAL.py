@@ -18,7 +18,9 @@ import numpy as np
 
 # References to the parameters used below are given in Ernst2023Modeling:
 # https://arxiv.org/abs/2304.02521
-Dgs = 2.87771e9  # units: Hz
+Dgs = 2.87771e9  # units: Hz, at T=0K.
+# units: Hz; see Chen et al., APL 99, 161903 (2011):
+d1, d2, d3, d4, d5 = -4.625e3, 1.067e2, -9.325e-1, 1.739e-3, -1.838e-6
 Des_para = 1.44e9 # units: Hz
 Des_perp = 1.541e9/2 # units: Hz
 Les_para = 5.33e9 # units: Hz
