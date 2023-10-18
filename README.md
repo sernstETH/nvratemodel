@@ -265,6 +265,7 @@ LindbladOp_DecayOfExToEy_HF
 LindbladOp_DecayOfExToEx_HF
 LindbladOp_DecayOfEyToEy_HF
 LindbladOp_GS_msp1_ypiPulse_EZ
+LindbladOp_GS_msp1_xpiPulse_EZ
 ```
 
 Some useful functions and definitions:
