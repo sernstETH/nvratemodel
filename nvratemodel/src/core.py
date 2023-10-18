@@ -1525,8 +1525,12 @@ LindbladOp_DecayOfEyToEy_HF = np.array([
         ], dtype = np.complex128)
 
 LindbladOp_GS_msp1_ypiPulse_EZ = np.zeros((10,10), dtype = np.complex128)
-LindbladOp_GS_msp1_ypiPulse_EZ[:2,:2] = sigma_y # same as level1=0, level2=1 in piPulse()
-# NOTE: this is only a correct pi-pulse if EZ basis has same states as EIG basis in the GS.
+LindbladOp_GS_msp1_ypiPulse_EZ[:2,:2] = sigma_y # as level1=0, level2=1 in piPulse()
+LindbladOp_GS_msp1_xpiPulse_EZ = np.zeros((10,10), dtype = np.complex128)
+LindbladOp_GS_msp1_xpiPulse_EZ[:2,:2] = sigma_x # as level1=0, level2=1 in piPulse()
+# Meant for usage in applyJumpOp() in simulatePopTimeTrace():
+# With D = getDissipator(LindbladOp_GS_msp1_ypiPulse_EZ) and U=1+D one can
+# apply a pi pulse with rho_new = U*rho_0 in Fock-Liouville space.
 
 def makeCoherentLindbladOpList(
                 T = T_default,

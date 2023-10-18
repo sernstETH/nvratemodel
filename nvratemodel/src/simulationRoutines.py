@@ -1327,10 +1327,15 @@ def simulatePopTimeTrace(times, tsteps, ksteps, state0,
     jumpTimes : list of floats, optional
         Times at which to apply the respective jump operators jumpOps. Unit: s.
     jumpOps : list of numpy.array, optional
-        Matrices that represent jump operators for the MEmodel.
-        Readily available options are:
-        LindbladOp_DecayOfEyToEx_HF, LindbladOp_DecayOfExToEy_HF, LindbladOp_DecayOfExToEx_HF,
-        LindbladOp_DecayOfEyToEy_HF, LindbladOp_GS_msp1_ypiPulse_EZ
+        Matrices that represent jump operators for the MEmodel. No unit.
+        Available options are:
+        LindbladOp_DecayOfEyToEx_HF, LindbladOp_DecayOfExToEy_HF:
+            Makes a jump between the ES orbital state (like T1 relaxation).
+            Only gives correct results if there are no orbital coherences ever!
+        LindbladOp_DecayOfExToEx_HF, LindbladOp_DecayOfEyToEy_HF:
+            Makes a complet T2 decay of the ES orbital state, i.e. kills coherences.
+        LindbladOp_GS_msp1_xpiPulse_EZ, LindbladOp_GS_msp1_ypiPulse_EZ:
+            Makes a perfect pi_x/y pulse on the GS spin.
     explainStr : str, optional
         String added to the figure plot title for clarity of the content.
     plotTrace : bool, optional
