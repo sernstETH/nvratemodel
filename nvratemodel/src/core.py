@@ -1028,7 +1028,7 @@ def kmix1Full_scalar(T, Delta, elPhonCoup, T0):
     Get the rate of the 1-phonon process for going down (E_x -> E_y in HF basis).
     See Goldman2015 and Ulbricht2016.
     
-    Units: T [K], Delta [Hz], elPhonCoup [/us/meV**3]
+    Units: T [K], Delta [Hz] is about 2*Eperp, elPhonCoup [/us/meV**3]
     
     return Units: 1/s as all rates
     """
@@ -1052,7 +1052,7 @@ def kmix2TwoEmissions(T, Delta, elPhonCoup=elPhonCoup_default, T0=0.,
     """
     Get the rate for the 2-phonon-emission process for going down (E_x -> E_y in HF basis).
 
-    Units: T [K], Delta [Hz], elPhonCoup [/us/meV**3], phononCutoffEnergy [eV]
+    Units: T [K], Delta [Hz] is about 2*Eperp, elPhonCoup [/us/meV**3], phononCutoffEnergy [eV]
     
     return Units: 1/s as all rates
     """
@@ -1067,10 +1067,9 @@ def kmix2TwoEmissions(T, Delta, elPhonCoup=elPhonCoup_default, T0=0.,
     def DebyeIntegrandTwoEmissions(x, T, Delta):
         x_perp = h*Delta/(kB*T)
         if x > x_perp:
-            return 0. # Debye Integral goes up to x_perp, it does not make sens with higher x, since would be negative.
+            return 0. # Phonon-Integral goes up to x_perp, it does not make sens with higher x, since would be negative.
         else:
             # 0.5 * x * (-x+x_perp) * (x**2 + (-x+x_perp)**2) /( (np.exp(x)-1) * (np.exp(-x+x_perp)-1) ) # numerically unstable for high x and x~0.
-            # the 0.5 does not belong here but to the 64*0.5=32 as prefactor to the mixing rate. Is still here to compare Debye integral value with Goldman alpha.
             dividend = 0.5 * np.exp(-x+x_perp) * x * (-x+x_perp) * (x**2 + (-x+x_perp)**2)
             divisor = np.exp(-x+x_perp) - 1 - np.exp(-2*x+x_perp) + np.exp(-x)
             return dividend/divisor if divisor!=0. else 0. # since the limit for x-> inf is 0.=0./0. here.
@@ -1102,7 +1101,7 @@ DetailedBallanceRatio = np.vectorize(DetailedBallanceRatio_scalar)
 def DebyeIntegrandFull_scalar(x, T, Delta):
     """
     See Plakhotnik2015 or Goldman2015 for derivation. See Fu2009 originally.
-    The only approximation contained here is the Debye model and standard
+    Approximation contained here are the Debye model and standard
     deformation potential of long wavelength acoustic phonons.
     This means, that the polarization-specific E-phonon spectral density
     is approximated by simply elPhonCoup*energy**3.
@@ -1113,7 +1112,7 @@ def DebyeIntegrandFull_scalar(x, T, Delta):
     
     Units: T [K], Delta [Hz] is about 2*Eperp.
     
-    x has unit: 1 and is energy in the Debye integral divided by (kB*T).
+    x has unit: 1 and is energy in the Phonon-Integral divided by (kB*T).
     
     return unit: 1
 
@@ -1124,10 +1123,9 @@ def DebyeIntegrandFull_scalar(x, T, Delta):
     
     x_perp = h*Delta/(kB*T)
     if x <= x_perp:
-        quotient = np.float64(0.) # Debye Integral starts at x_perp, it does not make sens with lower x, since would be negative.
+        quotient = np.float64(0.) # Phonon-Integral starts at x_perp, it does not make sens with lower x, since would be negative.
     else:
         # 0.5 * np.exp(x) * x * (x-x_perp) * (x**2 + (x-x_perp)**2) /( (np.exp(x)-1) * (np.exp(x-x_perp)-1) ) # numerically unstable for high x and x~0.
-        # 0.5 does not belong here but to the 64*0.5=32 as prefactor to the mixing rate in kmix2Full_scalar. Is still here to compare Debye integral value with Goldman alpha. If changed, new LUT needs to be calculated. And in paper it is also as here in code.
         dividend = 0.5 * np.exp(-x) * x * (x-x_perp) * (x**2 + (x-x_perp)**2)
         divisor = np.exp(-x_perp) - np.exp(-x) - np.exp(-x_perp-x) + np.exp(-2*x)
         if divisor==0.:
@@ -1137,11 +1135,11 @@ def DebyeIntegrandFull_scalar(x, T, Delta):
     return quotient  
 DebyeIntegrandFull = np.vectorize(DebyeIntegrandFull_scalar)
 
-def DebyeIntegralFull_scalar(T, Delta, phononCutoffEnergy=phonCutoff_default):
+def PhononIntegralFull_scalar(T, Delta, phononCutoffEnergy=phonCutoff_default):
     """
-    Debye Integral as used by Plakhotnik2015, where it is called I.
+    Phonon-Integral as used by Plakhotnik2015, where it is called I.
     
-    Units: T [K], Delta [Hz], phononCutoffEnergy [eV]
+    Units: T [K], Delta [Hz] is about 2*Eperp, phononCutoffEnergy [eV]
     
     return unit: 1
     """
@@ -1153,11 +1151,11 @@ def DebyeIntegralFull_scalar(T, Delta, phononCutoffEnergy=phonCutoff_default):
     res = quad(DebyeIntegrandFull_scalar, x_perp, cutoff, args=(T, Delta))[0]
     #np.seterr(over=None)  #seterr to known value
     return res
-DebyeIntegralFull = np.vectorize(DebyeIntegralFull_scalar)
+PhononIntegralFull = np.vectorize(PhononIntegralFull_scalar)
 
-def loadDebyeIntegralFull_LUT():
-    pathandname = osjoin(PATH_LUT, 'DebyeIntegralLUT', 'DebyeIntegralLUT_noApprox.json')    
-    DebyeIntegralFull_LUT_dict = {}
+def loadPhononIntegralFull_LUT():
+    pathandname = osjoin(PATH_LUT, 'PhononIntegralLUT', 'PhononIntegralLUT_noApprox.json')    
+    PhononIntegralFull_LUT_dict = {}
     try:
         with open(pathandname, 'r') as f:
             LUTdict = load(f)
@@ -1166,44 +1164,44 @@ def loadDebyeIntegralFull_LUT():
                 y = np.array(LUTdict[key]["Ts"])
                 z = np.array(LUTdict[key]["LUT_Delta_T"])
                 spline = RectBivariateSpline(x, y, z)
-                DebyeIntegralFull_LUT_dict[key] = spline
+                PhononIntegralFull_LUT_dict[key] = spline
     except FileNotFoundError:
         pass
-        # print(f"""Failed to load Debye-Integral LUT from {pathandname}. Please run 'updateDebyeIntegralFullLUT()'.""")
+        # print(f"""Failed to load Debye-Integral LUT from {pathandname}. Please run 'updatePhononIntegralFullLUT()'.""")
         # Anyways, kmix2Full_scalar() will complain so not needed.
-    return DebyeIntegralFull_LUT_dict
+    return PhononIntegralFull_LUT_dict
 
-DebyeIntegralFull_LUT_dict = loadDebyeIntegralFull_LUT()
+PhononIntegralFull_LUT_dict = loadPhononIntegralFull_LUT()
 
-def DebyeIntegralFull_fromLUT_scalar(T, Delta,
+def PhononIntegralFull_fromLUT_scalar(T, Delta,
                               phononCutoffEnergy=phonCutoff_default):
     """
     From Debye-Integral LUT obtain result via interpolation.
     
     NOTE: The LUT has a finite range, beyond which simply the edge value is used.
     """
-    global DebyeIntegralFull_LUT_dict
-    LUT_dict=DebyeIntegralFull_LUT_dict
+    global PhononIntegralFull_LUT_dict
+    LUT_dict=PhononIntegralFull_LUT_dict
     
     key = f'{phononCutoffEnergy:.5f}' # units: eV
     if key not in LUT_dict.keys():
         raise NotImplementedError
     I = float(LUT_dict[key](Delta, T))    
     return I
-DebyeIntegralFull_fromLUT = np.vectorize(DebyeIntegralFull_fromLUT_scalar)
+PhononIntegralFull_fromLUT = np.vectorize(PhononIntegralFull_fromLUT_scalar)
 
 # Test accuracy of LUT:
 if 0:
     T_test,Delta_test = 1, 1e9
-    print('spline:\t\t', DebyeIntegralFull_fromLUT(T_test,Delta_test))
-    print('integral:\t', DebyeIntegralFull_scalar(T_test,Delta_test))
+    print('spline:\t\t', PhononIntegralFull_fromLUT(T_test,Delta_test))
+    print('integral:\t', PhononIntegralFull_scalar(T_test,Delta_test))
     
-def updateDebyeIntegralFullLUT(
+def updatePhononIntegralFullLUT(
         phononCutoffEnergy=phonCutoff_default,
         steps=1000,
         ):
     """
-    Update the LUT for the Debye Integral.
+    Update the LUT for the Phonon-Integral.
     Calculating the integral can take, dependent on Delta and T, most of the 
     time in determining e.g. the ssPL for a given situation.
     If the given phononCutoffEnergy is not yet existent in the LUT, it will
@@ -1220,7 +1218,7 @@ def updateDebyeIntegralFullLUT(
                           ) # units: Hz
     TList = np.logspace(np.log10(0.1), np.log10(500), num=steps) # units: K
     
-    pathandname = osjoin(PATH_LUT, 'DebyeIntegralLUT', 'DebyeIntegralLUT_noApprox.json')
+    pathandname = osjoin(PATH_LUT, 'PhononIntegralLUT', 'PhononIntegralLUT_noApprox.json')
     
     pathandname = ensure_dir(pathandname)
     try:
@@ -1231,7 +1229,7 @@ def updateDebyeIntegralFullLUT(
         dic = {}
         print(f'Creating new {pathandname}...')
     
-    dt = 1.5e-3 # units: s; check e.g. %%timeit    DebyeIntegralFull_scalar(20, 100e9)
+    dt = 1.5e-3 # units: s; check e.g. %%timeit    PhononIntegralFull_scalar(20, 100e9)
     print('This will take on the order of {:.0f}min.'.format(
         round(DeltaList.size*TList.size*dt/60)
         ))
@@ -1240,7 +1238,7 @@ def updateDebyeIntegralFullLUT(
     LUT = np.zeros((DeltaList.size, TList.size))
     for Delta_idx, Delta in enumerate(DeltaList):
         for T_idx, T in enumerate(TList):
-            LUT[Delta_idx, T_idx] = DebyeIntegralFull_scalar(
+            LUT[Delta_idx, T_idx] = PhononIntegralFull_scalar(
                 T, Delta, phononCutoffEnergy=phononCutoffEnergy
                 )
     thisdict = {
@@ -1254,10 +1252,10 @@ def updateDebyeIntegralFullLUT(
     with open(pathandname, 'w') as f:
         dump(dic, f)
         
-    global DebyeIntegralFull_LUT_dict
-    DebyeIntegralFull_LUT_dict = loadDebyeIntegralFull_LUT()
+    global PhononIntegralFull_LUT_dict
+    PhononIntegralFull_LUT_dict = loadPhononIntegralFull_LUT()
 
-    name = f'Debye Integral - no approximation - phononCutoffEnergy {phononCutoffEnergy:.5f}'
+    name = f'Phonon-Integral - no approximation - phononCutoffEnergy {phononCutoffEnergy:.5f}'
     figMap = plt.figure(figsize=(9,7))
     figMap.suptitle(name, fontsize='medium')
     figMap.set_tight_layout(True)
@@ -1273,7 +1271,7 @@ def updateDebyeIntegralFullLUT(
     axes.set_xscale('log')
     axes.set_yscale('log')
     # plt.show()
-    pathandnamefig = osjoin(PATH_LUT, 'DebyeIntegralLUT', name)
+    pathandnamefig = osjoin(PATH_LUT, 'PhononIntegralLUT', name)
     figMap.savefig(ensure_dir('{}.png'.format(pathandnamefig)),
                    format='png', dpi=100,
                    )
@@ -1288,9 +1286,9 @@ def kmix2Full_scalar(T, Delta, elPhonCoup=elPhonCoup_default, T0=0.,
     
     This is second-order Fermi's golden rule for a 2-E-symmetric-phonon Raman process.
     See Fu2009 originally, and Plakhotnik2015 and Goldman2015.
-    The full Debye integral is used, more see DebyeIntegrandFull_scalar().
+    The full Phonon-Integral is used, more see DebyeIntegrandFull_scalar().
     
-    Units: T [K], Delta [Hz], elPhonCoup [/us/meV**3], phononCutoffEnergy [eV]
+    Units: T [K], Delta [Hz] is about 2*Eperp, elPhonCoup [/us/meV**3], phononCutoffEnergy [eV]
     
     return Units: 1/s as all rates    
     """
@@ -1303,16 +1301,16 @@ def kmix2Full_scalar(T, Delta, elPhonCoup=elPhonCoup_default, T0=0.,
     
     try:
         # much faster: use a LUT (but phononCutoffEnergy has to exist in it)
-        kmix *= DebyeIntegralFull_fromLUT_scalar(T, Delta, 
+        kmix *= PhononIntegralFull_fromLUT_scalar(T, Delta, 
                                      phononCutoffEnergy=phononCutoffEnergy)
     except NotImplementedError:
         # calculate for given phononCutoffEnergy: 
         global LUT_WARNINGS_PRINTED_FOR
         if phononCutoffEnergy not in LUT_WARNINGS_PRINTED_FOR:
             print(f'NOTE: No LUT available for phonon cutoff energy phononCutoffEnergy={phononCutoffEnergy*1e3:.1f}meV. On the fly computation is slower.')
-            print(f"Please run 'updateDebyeIntegralFullLUT({phononCutoffEnergy:.5f})'. This notification will not be displayed again.")
+            print(f"Please run 'updatePhononIntegralFullLUT({phononCutoffEnergy:.5f})'. This notification will not be displayed again.")
             LUT_WARNINGS_PRINTED_FOR.append(phononCutoffEnergy)
-        kmix *= DebyeIntegralFull_scalar(T, Delta, phononCutoffEnergy=phononCutoffEnergy)
+        kmix *= PhononIntegralFull_scalar(T, Delta, phononCutoffEnergy=phononCutoffEnergy)
     return min(kmix, khoppLimit) if kmix > 1e0 else 0. # limit the rate at 50THz since otherwise the rate model becomes numerically unstable.
 kmix2Full = np.vectorize(kmix2Full_scalar)
 

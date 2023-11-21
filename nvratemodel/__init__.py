@@ -9,8 +9,8 @@ basisStateNames, printPop, purerho, vecToDensityMatrix, \
 get_Hes_EZ, get_H_EZ_withSS, partialTraceOrbit, partialTraceSpin, \
 get_avgH_EZ_withSS, get_avgHTRF_EZ_withSS, get_orbitalSplitting, \
 get_LarmorFrequ, lifetimeBoseEinsteinFunc, kmix1Full, kmix2TwoEmissions, \
-DetailedBallanceRatio, DebyeIntegrandFull, DebyeIntegralFull, \
-DebyeIntegralFull_fromLUT, updateDebyeIntegralFullLUT, kmix2Full, \
+DetailedBallanceRatio, DebyeIntegrandFull, PhononIntegralFull, \
+PhononIntegralFull_fromLUT, updatePhononIntegralFullLUT, kmix2Full, \
 getOrbitalRates, getPL, loadModelDictFromFile, makeModelDict, switchToReducedAngles, \
 scaleParam, formatParamValue, getParamStr, printModelDict, \
 MEmodel, LowTmodel, HighTmodel, SZmodel, NVrateModel, \

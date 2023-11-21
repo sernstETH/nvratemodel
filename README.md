@@ -91,12 +91,12 @@ There are two more things to note before you get started:
   ```
   to see whether it works and to have a look at the saved data structure (a human-readable ```.json``` file).
 
-- Generating a LUT of the Debye Integral:
+- Generating a LUT of the Phonon-Integral:
   
-  As you probably noticed in the example above, the library printed a note about a missing lookup table (LUT) of the Debye Integral. If you just want to test the nvratemodel library a bit or if you just intend to use it at room temperature (```HighTmodel```), you can just ignore this. But if you want to use the ```MEmodel``` and are interested in a faster computational speed, do as the printed note tells you: generate (and automatically save in the root directory of the nvratemodel) a LUT, which will take on the order of 25min, but saves you time on all computations later on.
+  As you probably noticed in the example above, the library printed a note about a missing lookup table (LUT) of the Phonon-Integral. If you just want to test the nvratemodel library a bit or if you just intend to use it at room temperature (```HighTmodel```), you can just ignore this. But if you want to use the ```MEmodel``` and are interested in a faster computational speed, do as the printed note tells you: generate (and automatically save in the root directory of the nvratemodel) a LUT, which will take on the order of 25min, but saves you time on all computations later on.
   Call 
   ```
-  nv.updateDebyeIntegralFullLUT(0.168)
+  nv.updatePhononIntegralFullLUT(0.168)
   ```
   for the default Debye cutoff energy of ```phonCutoff=0.168```eV. You can also set other values of ```modeldict['phonCutoff']``` (see below) - the library will then ask you again to update the LUT with the values requested.
 
@@ -218,9 +218,9 @@ kmix1Full
 kmix2TwoEmissions
 DetailedBallanceRatio
 DebyeIntegrandFull
-DebyeIntegralFull
-DebyeIntegralFull_fromLUT
-updateDebyeIntegralFullLUT
+PhononIntegralFull
+PhononIntegralFull_fromLUT
+updatePhononIntegralFullLUT
 kmix2Full
 getOrbitalRates
 getPL
