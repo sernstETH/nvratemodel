@@ -2411,7 +2411,7 @@ class NVrateModel(object):
     
     def getPureState(self, idx, idxInBasisName='EZ'):
         """
-        Get a pure state (just population in index idx) of the basis 
+        Get a pure state (only population 1 in index idx) of the basis 
         idxInBasisName.
         
         ATTENTION: Currently only works reliable for MEmodel due to inaccuracy
@@ -4322,13 +4322,13 @@ def getReadoutFidelity_ms0(integrationTime='optSNR',
     """
     modeldict = makeModelDict(**modeldict) # generate from modeldict kwargs
     if modelClass == HighTmodel:
-        P0 = modelClass(**modeldict).getPureState(1, idxInBasisName='avgEZ')
+        state0 = modelClass(**modeldict).getPureState(1, idxInBasisName='avgEZ')
     else:
-        P0 = modelClass(**modeldict).getPureState(1, idxInBasisName='EZ')
+        state0 = modelClass(**modeldict).getPureState(1, idxInBasisName='EZ')
     
     contrast,tint,ref = getContrast(integrationTime,
                     tauR=tauR, Delta_t=Delta_t, N=N, tstepsize=tstepsize,
-                    P0 = P0, modelClass=modelClass,
+                    state0=state0, modelClass=modelClass,
                     level1=level1, level2=level2,
                     **modeldict)
     SNR = readoutSNR(contrast, tint, ref)
