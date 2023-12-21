@@ -37,7 +37,7 @@ jitOpt = nb.jit(nopython=True) if NUMBA_OPT else lambda x: x
 
 # Load globally accessible default NV center parameters:
 from GLOBAL import Dgs, Des_para, Des_perp, Les_para, Les_perp, gl, d1, d2, d3, d4, d5, \
-    convfactor_GSandES, diamondDebyeEnergy, PlakhotnikCutoffEnergy, \
+    B_convfactor_GSandES, diamondDebyeEnergy, PlakhotnikCutoffEnergy, \
     AbtewCutoffEnergy, kE12OVERkA1, \
     Eperp_default, phiE_default, B_default, thetaB_default, phiB_default, \
     kr_default, kE12_default, kA1_default, kExy_default, exRatio_default, \
@@ -325,16 +325,16 @@ def B_Hz2T(B_GHz):
     
     Output: magnetic field [T]
     """
-    return B_GHz/(convfactor_GSandES)
+    return B_GHz/(B_convfactor_GSandES)
 
 @jitOpt
 def B_T2Hz(B_T):
     """
-    Input: magnetic field [GHz]
+    Input: magnetic field [T]
     
-    Output: magnetic field [T]
+    Output: magnetic field [GHz]
     """
-    return B_T*(convfactor_GSandES)
+    return B_T*(B_convfactor_GSandES)
 
 @jitOpt
 def polar2cart(r, theta, phi):
@@ -4334,3 +4334,41 @@ def getReadoutFidelity_ms0(integrationTime='optSNR',
     SNR = readoutSNR(contrast, tint, ref)
     
     return contrast, tint, SNR
+
+
+def get_GSresonances(**modeldict):
+    """
+    Compute the GS resonances.
+
+    Parameters
+    ----------
+    modeldict : dict, optional
+        Optional keyword arguments can be provided by a modeldict or separately.
+        For more details, see makeModelDict().
+        For an existing NVrateModel use its modeldict attribute.
+
+    Returns
+    -------
+    GSresonances : numpy.array
+        (f+, f-) , Units: Hz.
+
+    """
+    modeldict = makeModelDict(**modeldict) # generate from modeldict kwargs
+    thetaB, phiB, B = modeldict['thetaB'], modeldict['phiB'], modeldict['B']
+    Eperp, phiE =  modeldict['Eperp'], modeldict['phiE']
+    T = modeldict['T']
+    
+    # GS:
+    GSenergies, eigvecs = eigh(get_Hgs_EZ(
+        B, thetaB, phiB, Eperp, T
+        ))
+    GSeigVecs = eigvecs.transpose()
+    GSexpS_zOp = np.array([
+        expectationValue(S_z_opp, vec).real for vec in GSeigVecs
+        ])
+    spinvalues = GSexpS_zOp
+    spinvalues_sorted, energies_sorted = sortarrays(
+        spinvalues, GSenergies, order='decr')
+    GSresonances = np.abs(np.diff(energies_sorted))  # f+, f-
+    
+    return GSresonances

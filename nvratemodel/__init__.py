@@ -1,4 +1,4 @@
-from .GLOBAL import PATH_DATA
+from .GLOBAL import PATH_DATA, B_convfactor_GSandES
 
 from .src.auxRoutines import printMatrix, ensure_dir, getIndx, sortarrays
 
@@ -20,7 +20,8 @@ sensitivityLor, sensitivityEquation_Lor, readoutSNR, SNREquation, \
 getAmountMs0ForSequ, initState, piPulse, twoPointODMRTrace, getContrast, \
 getInitFidelity_ms0, getReadoutFidelity_ms0, \
 LindbladOp_DecayOfEyToEx_HF, LindbladOp_DecayOfExToEy_HF, LindbladOp_DecayOfExToEx_HF, \
-LindbladOp_DecayOfEyToEy_HF, LindbladOp_GS_msp1_ypiPulse_EZ, LindbladOp_GS_msp1_xpiPulse_EZ
+LindbladOp_DecayOfEyToEy_HF, LindbladOp_GS_msp1_ypiPulse_EZ, LindbladOp_GS_msp1_xpiPulse_EZ, \
+get_GSresonances
 
 from .src.simulationRoutines import simulateReadoutVsParam, simulate2DMap, \
 simulatePopTimeTrace, simulateEigenVsParam, simulateIvsT, simulatekmixvsT, simulatePulseVsParam

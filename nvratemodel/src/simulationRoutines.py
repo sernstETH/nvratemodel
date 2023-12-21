@@ -140,7 +140,7 @@ def simulateEigenVsParam(path=None, plot=True,
         spinvalues_sorted, energies_sorted = sortarrays(
             spinvalues, energies, order='decr')
         resonances = np.abs(np.diff(energies_sorted))
-        GSresonances.append(resonances) # f+, f-
+        GSresonances.append(resonances) # f+, f- # alternative to core.getGSresonances()
         
         # avgES:
         if not highT_trf:
@@ -180,10 +180,18 @@ def simulateEigenVsParam(path=None, plot=True,
     GSeigVecs = np.array(GSeigVecs)
     GSexpS_zOp = np.array(GSexpS_zOp)
     GSresonances = np.array(GSresonances)
+    GSresonancesGrad = np.transpose([
+        np.gradient(GSresonances[:,i], x)
+        for i in range(GSresonances.shape[1])
+        ]) # unit: Hz/T
     avgESenergies = np.array(avgESenergies)
     avgESeigVecs = np.array(avgESeigVecs)
     avgESexpS_zOp = np.array(avgESexpS_zOp)
     avgESresonances = np.array(avgESresonances)
+    avgESresonancesGrad = np.transpose([
+        np.gradient(avgESresonances[:,i], x)
+        for i in range(avgESresonances.shape[1])
+        ]) # unit: Hz/T
 
     if plot or path!=None:
 
@@ -230,7 +238,7 @@ def simulateEigenVsParam(path=None, plot=True,
                 for key, value in modeldict.items()
                 ])[:-2]
             )
-        figResonances = plt.figure(figsize=(7,5))
+        figResonances = plt.figure(figsize=(8,5))
         figResonances.suptitle(name)
         figResonances.set_tight_layout(True)
         axes = figResonances.add_subplot(111)
@@ -245,6 +253,33 @@ def simulateEigenVsParam(path=None, plot=True,
                           label=f'{resNames[i]} of GS', linestyle='dashed')
         axes.set_xlabel(f'{xParamName} [{xunit}]')
         axes.set_ylabel(r'$E$ [GHz]')
+        axes.set_xlim(xscaled.min())
+        axes.grid(True)
+        if plotAvgES or plotGS:
+            axes.legend(fontsize='small')
+        
+        name = 'Gradient of resonances of Hamiltonian\n{}'.format(
+            ''.join([
+                getParamStr((key, value))+', '
+                if key in ['thetaB', 'phiB', 'B', 'Eperp', 'phiE', 'T'] else ''
+                for key, value in modeldict.items()
+                ])[:-2]
+            )
+        figResonancesGrad = plt.figure(figsize=(8,5))
+        figResonancesGrad.suptitle(name)
+        figResonancesGrad.set_tight_layout(True)
+        axes = figResonancesGrad.add_subplot(111)
+        resNames = [r'$f_+$',r'$f_-$']
+        if plotAvgES:
+            for i in range(avgESresonancesGrad.shape[1]):
+                axes.plot(xscaled, avgESresonancesGrad[:,i]/1e9,
+                          label=f'{resNames[i]} of avged ES', linestyle='dotted')
+        if plotGS:
+            for i in range(GSresonancesGrad.shape[1]):
+                axes.plot(xscaled, GSresonancesGrad[:,i]/1e9,
+                          label=f'{resNames[i]} of GS', linestyle='dashed')
+        axes.set_xlabel(f'{xParamName} [{xunit}]')
+        axes.set_ylabel(r'$\frac{d E}{d B}$ [GHz/T]')
         axes.set_xlim(xscaled.min())
         axes.grid(True)
         if plotAvgES or plotGS:
@@ -352,9 +387,11 @@ def simulateEigenVsParam(path=None, plot=True,
         "ESenergies":       [list(row) for row in ESenergies],
         "avgedESenergies":  [list(row) for row in avgESenergies],
         "avgESresonances":  [list(row) for row in avgESresonances],
+        "avgESresonancesGrad": [list(row) for row in avgESresonancesGrad],
         "orbESenergies":    [list(row) for row in ESorbenergies],
         "GSenergies":       [list(row) for row in GSenergies],
         "GSresonances":     [list(row) for row in GSresonances],
+        "GSresonancesGrad": [list(row) for row in GSresonancesGrad],
         "ES_EZBasis_names": basisStateNames['EZ'][3:-1],
         "ESeigVecs_EZBasis": [[[str(val) for val in col] for col in row] for row in ESeigVecsEZ],
         "ES_ZFBasis_names": basisStateNames['ZF'][3:-1],        
@@ -388,6 +425,11 @@ def simulateEigenVsParam(path=None, plot=True,
         name='Resonances'
         pathandname = osjoin(path, name)
         figResonances.savefig(ensure_dir('{}.png'.format(pathandname)),
+                          format='png', dpi=100,
+                          )
+        name='Resonances_Gradient'
+        pathandname = osjoin(path, name)
+        figResonancesGrad.savefig(ensure_dir('{}.png'.format(pathandname)),
                           format='png', dpi=100,
                           )
         name='ESeigVecs_ExpectVal_S_z'

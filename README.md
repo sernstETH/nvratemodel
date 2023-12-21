@@ -209,6 +209,7 @@ get_avgH_EZ_withSS
 get_avgHTRF_EZ_withSS
 get_orbitalSplitting
 get_LarmorFrequ
+get_GSresonances
 ```
 
 Functions related to rates of the model:
@@ -286,4 +287,5 @@ eigh
 basisTrafo
 get_T_XtoY
 kB, h, hbar, S_z_opp, S_x_opp, S_y_opp, sigma_z, sigma_x, sigma_y, Id2, Id3, Id6, Id7, Id9, Id10
+B_convfactor_GSandES
 ```

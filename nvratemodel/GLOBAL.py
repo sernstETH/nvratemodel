@@ -28,7 +28,7 @@ Les_perp = 0.154e9 # units: Hz
 gl = 0.1 # units: 1
 
 # orbital g factor for both GS and ES:
-convfactor_GSandES = 2.003*9.2740100783e-24/6.62607015e-34 # SI units; gs*mu_b/h;
+B_convfactor_GSandES = 2.003*9.2740100783e-24/6.62607015e-34 # SI units: Hz/T; gs*mu_b/h;
 
 diamondDebyeEnergy = 168e-3 # unit: [eV]
 PlakhotnikCutoffEnergy = 13.4e-3 # unit: [eV], found in Palkhotnik2015.
