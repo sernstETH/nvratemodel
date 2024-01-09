@@ -1,5 +1,7 @@
 from os.path import abspath, dirname
 from os.path import join as osjoin
+from scipy.optimize import minimize
+from matplotlib.colors import LogNorm
 import sys
 sys.path.insert(0, abspath(osjoin(dirname(__file__), '..'))) # add root directory to import paths
 
@@ -1773,3 +1775,138 @@ def simulatePulseVsParam(path=None, plot=True, stackedPlot=True,
         plt.show()
 
     return dic
+
+
+
+def fitMagnetAlignment(GSresonances, path=None, plot=True,
+                       B_min=0, B_max=10e-3,
+                       **modeldict):
+    """
+    Fit observed spin resonances GSresonances = (f+, f-) to obtain the alignment
+    of the bias magnetic field.
+    Make sure you set the correct temperature in modeldict (or via T=X).
+    The values for B and thetaB in modeldict (or via B= and theta=) are used as
+    initial guess for the fitting.
+    Note that a E-field/strain splitting of the GS is not included in the model.
+
+    Parameters
+    ----------
+    GSresonances : tuple
+        (f+, f-) spin resonances as they where observed. Unit: Hz
+    path : str, optional
+        Save result to this path if provided.
+    plot : bool, optional
+        Plot the result if desired.
+    B_min : float
+        Minimal magnetic field strength. Units: T
+    B_max : float
+        Maximal magnetic field strength. Units: T
+    modeldict : dict, optional
+        Optional keyword arguments can be provided by a modeldict or separately.
+        For more details, see makeModelDict().
+
+    Returns
+    -------
+    B_fit : float
+        Magnetic field strength obtained in the fit. Units: T
+    thetaB_fit : float
+        Misalignment angle obtained in the fit. Units: rad
+    """
+    modeldict = makeModelDict(**modeldict) # generate from modeldict kwargs
+    thetaB, B, T = modeldict['thetaB'], modeldict['B'], modeldict['T']
+    resonances_user = GSresonances
+    
+    # full range to investigate:
+    thetaB_min, thetaB_max = np.radians((0,180)) 
+    
+    # fit for minimum:
+    def fitfunc(x):
+        B, thetaB = x
+        modeldict['B'] = B
+        modeldict['thetaB'] = thetaB
+        GSresonances = get_GSresonances(**modeldict) # f+, f-
+        return np.linalg.norm((GSresonances-resonances_user)) # unit: error in Hz
+    
+    res = minimize(fitfunc, (B, thetaB), bounds=((B_min, B_max),(thetaB_min, thetaB_max)))
+    print(res)
+    B_fit, thetaB_fit = res.x
+    modeldict_res = deepcopy(modeldict)
+    modeldict_res['B'] = B_fit
+    modeldict_res['thetaB'] = thetaB_fit
+    resonances = get_GSresonances(**modeldict_res) # f+, f-
+    print('fit result error [MHz]: ', (resonances-resonances_user)/1e6)
+    
+    
+    if path!=None or plot==True:
+        # compute:
+        num = 100
+        xParamName = 'B'
+        yParamName = 'thetaB'
+        x=np.linspace(B_min, B_max, num)
+        y=np.linspace(thetaB_min, thetaB_max, num)
+        
+        z = np.zeros((y.size, x.size))
+        for xi,xval in enumerate(x):
+            for yi,yval in enumerate(y):
+                z[yi][xi] = fitfunc((xval, yval))
+        
+        # plot:
+        xunit, xscaled = scaleParam((xParamName,x))
+        yunit, yscaled = scaleParam((yParamName,y))
+        B_fitscaled = scaleParam((xParamName,B_fit))[1]
+        thetaBscaled = scaleParam((yParamName,thetaB_fit))[1]
+        zlabel = r'$\sqrt{(f_{+,err}^2+f_{-,err}^2}$ [$MHz$]'
+        zscale = lambda x: x/1e6 # for MHz
+
+        name = f'Deviation of observed resonances at ({zscale(resonances_user[0]):.2f}, {zscale(resonances_user[1]):.2f})MHz'
+        name += ' from Simulation'
+        name += '\n'+rf'Fit result: $B$ = {B_fitscaled:.2f}{xunit}, $thetaB$ = {thetaBscaled:.2f}{yunit}'
+        name += '\n'+rf'$T$ = {T:.0f}K'
+    
+        
+        fig = plt.figure(figsize=(8,7))
+        fig.set_tight_layout(True)
+        axes = fig.add_subplot(111)
+        im = axes.pcolormesh(xscaled, yscaled, zscale(z),
+                             shading='nearest', norm=LogNorm())
+        plt.colorbar(im, label=zlabel)
+        axes.set_title(name)
+        axes.set_xlabel(f'{xParamName} [{xunit}]')
+        axes.set_ylabel(f'{yParamName} [{yunit}]')
+
+        axes.plot(B_fitscaled, thetaBscaled,
+                  color='red', ls='', marker='*', ms=15)
+        
+        if path!=None:
+            dic = {
+                "xParamName":       xParamName,
+                "yParamName":       yParamName,
+                "zParamName":       zlabel,
+                "x":                list(x),
+                "y":                list(y),
+                "z":                [list(row) for row in z],
+                "params":           modeldict_res, # contains fit result
+                "resonances_user":  list(resonances_user), # f+, f-
+                "resonances_fit":   list(resonances), # f+, f-
+                }
+
+            timestr = strftime("%Y-%m-%d_%H-%M-%S")
+            explanation = '_fitMagnetAlignment'
+            path = osjoin(path, timestr+explanation)
+            # save plots:
+            name='fitMagnetAlignment'
+            pathandname = osjoin(path, name)
+            fig.savefig(ensure_dir('{}.png'.format(pathandname)),
+                        format='png', dpi=100,                     
+                        )
+            # save the data:
+            name='fitMagnetAlignment.json'
+            pathandname = osjoin(path, name)
+            with open(pathandname, 'w') as f:
+                dump(dic, f)
+            print(f'Saved to {path}')
+        
+        if plot:
+            plt.show()
+    
+    return B_fit, thetaB_fit

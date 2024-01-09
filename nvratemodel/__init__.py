@@ -24,7 +24,8 @@ LindbladOp_DecayOfEyToEy_HF, LindbladOp_GS_msp1_ypiPulse_EZ, LindbladOp_GS_msp1_
 get_GSresonances
 
 from .src.simulationRoutines import simulateReadoutVsParam, simulate2DMap, \
-simulatePopTimeTrace, simulateEigenVsParam, simulateIvsT, simulatekmixvsT, simulatePulseVsParam
+simulatePopTimeTrace, simulateEigenVsParam, simulateIvsT, simulatekmixvsT, \
+simulatePulseVsParam, fitMagnetAlignment
 
 from .examples import example_PRB_Fig7a, example_PRB_Fig4h, \
 example_PRB_Fig3b, example_PRB_Fig7b, example_PRL_Fig3a
