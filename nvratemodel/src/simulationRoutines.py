@@ -1817,7 +1817,7 @@ def fitMagnetAlignment(GSresonances, path=None, plot=True,
     resonances_user = GSresonances
     
     # full range to investigate:
-    thetaB_min, thetaB_max = np.radians((0,180)) 
+    thetaB_min, thetaB_max = np.radians((0,90)) 
     
     # fit for minimum:
     def fitfunc(x):
