@@ -186,6 +186,7 @@ simulateIvsT
 simulatekmixvsT
 simulatePulseVsParam
 simulatePopTimeTrace
+fitMagnetAlignment
 ```
 Take a look at their doc strings by ```help(nv.function_name)``` to learn more about how to use them or get an idea of their output by just calling them with their defaults ```function_name()```. Just the more involved ```simulatePopTimeTrace``` function needs some arguments, of which an example can be found in ```example_PRB_Fig3b.py```.
 
