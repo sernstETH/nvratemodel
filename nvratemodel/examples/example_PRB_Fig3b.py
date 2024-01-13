@@ -33,7 +33,7 @@ def run(path=None):
     basisName='EZ' # 'EZ', 'ZF', 'HF', 'ZB', 'avgEZ'
     # basisName='avgEZ' # for room temperature levels
     
-    explainStr=r'$\pi$-pulse applied before the laser laser pulse'
+    explainStr=r'$\pi$-pulse applied before the last laser pulse'
     
     modeldict = makeModelDict()
 
