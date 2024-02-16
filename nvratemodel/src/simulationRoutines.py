@@ -482,11 +482,12 @@ def simulateEigenVsParam(path=None, plot=True,
                 plt.close(fig)
         
         if plotAvgES==False and plotGS==False:
-            for fig in [figVecsavgEZ, figResonances]:
+            for fig in [figVecsavgEZ, figResonances, figResonancesGrad]:
                 plt.close(fig)
         plt.show()
     elif path!=None: # close all figures here if plot=False and saved, since too many.
-        for fig in [figEnergies, figResonances, figExpS_z, figExpOrb, figVecsEZ, 
+        for fig in [figEnergies, figResonances, figResonancesGrad,
+                    figExpS_z, figExpOrb, figVecsEZ, 
                     figVecsZF, figVecsHF, figVecsZB, figVecsavgEZ]:
             plt.close(fig)
     return dic
@@ -1407,15 +1408,16 @@ def simulatePopTimeTrace(times, tsteps, ksteps, state0,
         Contains the computation results and is also saved to file if path!=None.
 
     """
-    def applyJumpOp(state, jumpOp):
-        shape = state.shape
-        D = getDissipator(jumpOp)
-        state_vec = state.flatten('F')
-        res_vec = state_vec + np.dot(D, state_vec) # D*state is the dstate/dt change of state. Thus the new state is old state + change.
-        state_new = np.reshape(res_vec, shape, order='F')
-        return state_new
-
     if jumpTimes != []:
+        
+        def applyJumpOp(state, jumpOp):
+            shape = state.shape
+            D = getDissipator(jumpOp)
+            state_vec = state.flatten('F')
+            res_vec = state_vec + np.dot(D, state_vec) # D*state is the dstate/dt change of state. Thus the new state is old state + change.
+            state_new = np.reshape(res_vec, shape, order='F')
+            return state_new
+        
         if False in [kstep.name=="MEmodel" for kstep in ksteps]:
             raise NotImplementedError("Cannot use jumpTimes/jumpOps in models other than MEmodel.")
         

@@ -21,7 +21,10 @@ getAmountMs0ForSequ, initState, piPulse, twoPointODMRTrace, getContrast, \
 getInitFidelity_ms0, getReadoutFidelity_ms0, \
 LindbladOp_DecayOfEyToEx_HF, LindbladOp_DecayOfExToEy_HF, LindbladOp_DecayOfExToEx_HF, \
 LindbladOp_DecayOfEyToEy_HF, LindbladOp_GS_msp1_ypiPulse_EZ, LindbladOp_GS_msp1_xpiPulse_EZ, \
-get_GSresonances
+get_GSresonances, makeStepsForImprovedReadInit, getDepositedLaserEnergy, \
+initStateImproved, getInitFidelity_ms0Improved, getContrastImproved, \
+getSNRforImprovedReadInit, getPolarizationForImprovedReadInit, \
+getOptimizedParamsForImprovedReadInit
 
 from .src.simulationRoutines import simulateReadoutVsParam, simulate2DMap, \
 simulatePopTimeTrace, simulateEigenVsParam, simulateIvsT, simulatekmixvsT, \

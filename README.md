@@ -290,3 +290,15 @@ get_T_XtoY
 kB, h, hbar, S_z_opp, S_x_opp, S_y_opp, sigma_z, sigma_x, sigma_y, Id2, Id3, Id6, Id7, Id9, Id10
 B_convfactor_GSandES
 ```
+
+Functions for improved spin initialization and readout:
+```
+makeStepsForImprovedReadInit
+getDepositedLaserEnergy
+initStateImproved
+getInitFidelity_ms0Improved
+getContrastImproved
+getSNRforImprovedReadInit
+getPolarizationForImprovedReadInit
+getOptimizedParamsForImprovedReadInit
+```

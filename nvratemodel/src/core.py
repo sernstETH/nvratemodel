@@ -2,6 +2,7 @@ import numpy as np
 from scipy.linalg import expm
 from scipy.integrate import quad
 from scipy.interpolate import RectBivariateSpline
+from scipy.optimize import minimize, brute, minimize_scalar
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import matplotlib.gridspec as gridspec # used in plotRoutines.py
@@ -3493,8 +3494,9 @@ def makeStepsForLaserRise(t0, tend, tauR=25e-9,
     
     The laser power rises exponentially with a rise time tauR and in discrete
     steps of size Delta_t. All units are in [s].
-    The laser turns on at t0, so first tstep is t0+Delta_t with the first
-    kstep where the laser is a bit on. In the logic of ksteps,tsteps formalism
+    The laser turns on at t0, so first tstep is t0 with laser off, and the
+    second tstep is t0+Delta_t with the second kstep where the laser is a bit 
+    on. In the logic of ksteps,tsteps formalism
     (for details see calcTimeTrace()), this means that the laser is on 
     for all times t>t0. Use makePlot=True to view the behavior.
     The last tstep is tend with laser staying on the respective power level
@@ -3542,7 +3544,7 @@ def makeStepsForLaserRise(t0, tend, tauR=25e-9,
         modeldict['laserpower']=0.
         ksteps = [modelClass(**modeldict),]
         tsteps = [t0,]
- 
+         
         if N*tauR < Delta_t:
             raise ValueError('N*tauR < Delta_t but has to be larger.')
         num = int( ( min(t0+N*tauR, tend) - (t0+Delta_t) )/Delta_t )
@@ -4032,7 +4034,7 @@ def getContrast(integrationTime, minLaserOnTime=1.5e-6, tstepsize=1e-9,
     
     Parameters
     ----------        
-    integrationTime : float or str, optional
+    integrationTime : float or str
         If a float [Unit: s] is provided, it is used as fix integration time.
         For more information see getContrastOf2pointODMRTrace().
         
@@ -4321,7 +4323,7 @@ def getReadoutFidelity_ms0(integrationTime='optSNR',
         Signal to noise ratio (SNR) of the readout. For details see readoutSNR().
     """
     modeldict = makeModelDict(**modeldict) # generate from modeldict kwargs
-    if modelClass == HighTmodel:
+    if modelClass.name=='HighTmodel':
         state0 = modelClass(**modeldict).getPureState(1, idxInBasisName='avgEZ')
     else:
         state0 = modelClass(**modeldict).getPureState(1, idxInBasisName='EZ')
@@ -4372,3 +4374,892 @@ def get_GSresonances(**modeldict):
     GSresonances = np.abs(np.diff(energies_sorted))  # f+, f-
     
     return GSresonances
+
+
+
+########################################
+#%% Optimization of spin init and read
+########################################
+
+def makeStepsForImprovedReadInit(
+        t0 = 0.05e-6,
+        laserReadTime = 0.5e-6,
+        laserInitTime = 1e-6,
+        laserWaitTime = 1e-6,
+        laserpower_Init = None,
+        nbrOfPulses_Init = 0,
+        durationOfPulses_Init = 20e-9,
+        tauR = 0,
+        makePlot = False,
+        N=4,
+        Delta_t=5e-9,
+        modelClass = HighTmodel,
+        **modeldict
+        ):
+    """
+    Make a list of times tsteps and NV rate models to simulate the laser pulses
+    in a spin readout and subsequent initialization.
+    
+    This format is used by the function calcTimeTrace(). A simple version of this
+    function is given by makeStepsForLaserRise(). For the details on how the
+    laser rise time tauR, N, Delta_t are used, see there.
+    
+    Depending on the nbrOfPulses_Init, the sequence looks as follows:
+    (t0 is non-zero by default for a nicer look)
+        
+    nbrOfPulses_Init = 0: 'traditional' scheme - Start at time t0, laser on for duration
+    laserReadTime+laserInitTime, laser off for duration laserWaitTime.
+    
+    nbrOfPulses_Init = 1: 'two-laser' scheme - Start at time t0, laser on for duration
+    laserReadTime, laser on at power laserpower_Init for duration laserInitTime,
+    laser off for duration laserWaitTime.
+    
+    nbrOfPulses_Init > 1: 'pulsed' scheme - Start at time t0, laser on for duration
+    laserReadTime, laser pulsing at power laserpower_Init for duration laserInitTime
+    with nbrOfPulses_Init evenly separated pulses of duration durationOfPulses_Init,
+    laser off for duration laserWaitTime.
+    
+    Parameters that are not needed for the respective scheme are ignored.
+    laserReadTime is at the same time the maximal integration time (called minLaserOnTime in getContrast()).    
+    In modeldict the laser has to be on: laserpower>0 (or default, which is on).
+    
+    Parameters
+    ----------
+    t0, laserReadTime, laserInitTime, laserWaitTime, durationOfPulses_Init, tauR, Delta_t : floats, optional
+        see above. Units: s
+        
+    laserpower_Init : float or None, optional    
+        Unit: W. The laserpower for the read is set in modeldict by the kwarg laserpower.
+        If None, laserpower_Init=laserpower is used.
+    
+    nbrOfPulses_Init, N : int, optional
+        see above
+    
+    modelClass : NVrateModel, optional
+        Specify which rate model to use. Options:
+        MEmode (default), HighTmodel, LowTmodel, SZmodel
+        Note that the improved schemes of this function are only interesting
+        at room temperature, thus HighTmodel is the default in contrast to 
+        other functions in this library.
+        
+    modeldict : dict, optional
+        Optional keyword arguments can be provided by a modeldict or separately.
+        For more details, see makeModelDict().
+    
+    
+    Returns
+    -------
+    tsteps : list of float
+        Monotonically increasing time steps of a sequence. Unit: s
+    
+    ksteps : list of NVrateModel
+        ksteps[i] are the NVrateModel objects that are active until tsteps[i].
+    """
+    modeldict = makeModelDict(**modeldict) # generate from modeldict kwargs
+
+    nbrOfPulses_Init = int(nbrOfPulses_Init)
+    
+    if laserReadTime <= 0:
+        raise ValueError('laserReadTime needs to be larger than 0.')
+    
+    if laserInitTime <= 0: # switch to traditional scheme
+        laserInitTime = 0
+        nbrOfPulses_Init = 0
+        
+    if nbrOfPulses_Init > 1: # pulsed scheme is requested
+        if durationOfPulses_Init <= 0:  # laser off in the init time
+            laserpower_Init = 0
+            nbrOfPulses_Init = 1
+        if durationOfPulses_Init*nbrOfPulses_Init < laserInitTime:
+            waitBetweenPulses_Init  = laserInitTime/float(nbrOfPulses_Init) - durationOfPulses_Init
+        else: # switch to other scheme
+            if laserpower_Init:
+                nbrOfPulses_Init = 1 # two-laser scheme
+            else:
+                nbrOfPulses_Init = 0 # traditional scheme
+        
+    modeldictOnRead = modeldict
+    modeldictOff = deepcopy(modeldict)
+    modeldictOff['laserpower'] = 0
+    modeldictOnInit = deepcopy(modeldict)
+    modeldictOnInit['laserpower'] = laserpower_Init if laserpower_Init is not None else modeldictOnRead['laserpower']
+
+    shift = 1e-16 # this is to make sure background and first NV light are in the same bin and the bin of t1 is still 0.
+    # For more details see twoPointODMRTrace() where the same problem comes about.
+    
+    if nbrOfPulses_Init <= 0: # traditional scheme
+        #-- readout + init:
+        tend = t0+laserReadTime + laserInitTime
+        tsteps, ksteps = makeStepsForLaserRise(t0+shift, tend,
+                                     tauR=tauR, Delta_t=Delta_t, N=N,
+                                     modelClass=modelClass,
+                                     **modeldictOnRead)
+
+    elif nbrOfPulses_Init == 1: # two-laser scheme (only different from traditional scheme if laserpower_Init)
+        #-- readout:
+        tend = t0+laserReadTime
+        tsteps, ksteps = makeStepsForLaserRise(t0+shift, tend,
+                                     tauR=tauR, Delta_t=Delta_t, N=N,
+                                     modelClass=modelClass,
+                                     **modeldictOnRead)
+        #-- init:
+        tend += laserInitTime
+        tsteps.append(tend)
+        ksteps.append(modelClass(**modeldictOnInit))
+        
+    else: # pulsed init scheme (usually with laserpower_Init=None)
+        #-- readout:
+        tend = t0+laserReadTime
+        tsteps, ksteps = makeStepsForLaserRise(t0+shift, tend,
+                                     tauR=tauR, Delta_t=Delta_t, N=N,
+                                     modelClass=modelClass,
+                                     **modeldictOnRead)
+        #-- init:
+        tend += laserInitTime # end always after laserInitTime, even if the on and off times leave a fracture of the time unused.
+        # one laser pulse:
+        tsteps_p, ksteps_p = makeStepsForLaserRise(
+            waitBetweenPulses_Init+shift, waitBetweenPulses_Init+durationOfPulses_Init,
+            tauR=tauR, Delta_t=Delta_t, N=N,
+            modelClass=modelClass,
+            **modeldictOnInit)
+        # the laser off duration is automatically included by makeStepsForLaserRise().
+        # append several laser pulses:
+        tsteps_p = np.array(tsteps_p)
+        for i in range(int(laserInitTime / (waitBetweenPulses_Init + durationOfPulses_Init))):
+            tsteps.extend(list(tsteps_p+tsteps[-1]))
+            ksteps.extend(ksteps_p)               
+
+
+    # end sequence with laser off:
+    if laserWaitTime <= 0:
+        laserWaitTime = shift
+    tend += laserWaitTime
+    tsteps.append(tend)
+    ksteps.append(modelClass(**modeldictOff))
+    
+    if makePlot:
+        unit, scaling = scaleParam(('laserpower',1))
+        name = f'Laser power of read+init scheme\n \
+tauR={tauR*1e9:.2f}ns, Delta_t={Delta_t*1e9:.2f}ns, N={N:.0f}\n \
+laserInitTime={laserInitTime*1e6:.2f}us, laserReadTime={laserReadTime*1e6:.2f}us, \
+laserpower_Init={laserpower_Init}'
+        fig = plt.figure(figsize=(8,5))
+        fig.suptitle(name, fontsize='small')
+        fig.set_tight_layout(True)
+        axes = fig.add_subplot(111)
+        laserpowers = np.array([kstep.modeldict['laserpower'] for kstep in ksteps])
+        times = np.array(tsteps)
+        axes.step(times*1e9,laserpowers*scaling,where='pre')
+        axes.axvline(t0*1e9, color='black')
+        axes.axvline(tend*1e9, color='black')
+        axes.set_xlabel('time [ns]')
+        axes.set_ylabel(f'laserpower [{unit}]')
+        axes.grid(True)
+        plt.show()
+    return tsteps, ksteps
+
+
+def getDepositedLaserEnergy(tsteps, ksteps):
+    """
+    Parameters
+    ----------
+    tsteps : list of float
+        Monotonically increasing time steps of a sequence. Unit: s
+    
+    ksteps : list of NVrateModel
+        ksteps[i] are the NVrateModel objects that are active until tsteps[i].
+    
+    
+    Returns
+    -------
+    E : float
+        Deposited energy by the laser during the sequence. Units: J.
+    """
+    dts = np.diff(tsteps)
+    Ps = np.array([k.modeldict['laserpower'] for k in ksteps])
+    E = np.sum(Ps[1:]*dts)
+    
+    return E
+
+
+def initStateImproved(tsteps, ksteps, twait=1e-3, state0=None):
+    """
+    For given sequence, return the spin m_S=0 initialized state.
+    Init sequence: tsteps with ksteps from makeStepsForImprovedReadInit(),
+    then laser off for twait seconds.
+    
+    Parameters
+    ----------
+    tsteps, ksteps: lists
+        Use the return values of makeStepsForImprovedReadInit().
+        
+    state0 : numpy.ndarray, optional
+        Depending on the modelClass, this is a vector in EIG basis for classical 
+        rate models or a density matrix in EZ basis for the MEmodel.
+        If state0=None (default), the thermal state is assumed
+        (see NVrateModel.steadyState()).
+    
+    
+    Returns
+    -------
+    state : numpy.ndarray
+        Depending on the NV model, this is a vector in EIG basis for classical 
+        rate models or a density matrix in EZ basis for the MEmodel.
+    """
+    if state0 is None:
+        state0 = ksteps[0].steadyState() # ksteps[0] of makeStepsForImprovedReadInit() has laserpower=0.
+    
+    t0 = tsteps[0]
+    times = np.array([t0, tsteps[-1]+twait]) # calcTimeTrace() makes all necessary time steps in the calculation.
+
+    _,states,_,_ = calcTimeTrace(
+        times, tsteps, ksteps, state0,
+        basisName='avgEZ', # available in all models.
+        )
+    state = states[-1]
+    return state
+
+
+
+def getInitFidelity_ms0Improved(tsteps, ksteps, state0=None):
+    """
+    Get the amount of m_S=0 (i.e. initialization fidelity) after a sequence
+    of tsteps with ksteps as makeStepsForImprovedReadInit() returns, 
+    followed by a long waiting time (see initStateImproved()).
+    
+    Parameters
+    ----------
+    tsteps, ksteps: lists
+        Use the return values of makeStepsForImprovedReadInit().
+        
+    state0 : numpy.ndarray, optional
+        Depending on the modelClass, this is a vector in EIG basis for classical 
+        rate models or a density matrix in EZ basis for the MEmodel.
+        If state0=None (default), the thermal state is assumed
+        (see NVrateModel.steadyState()).
+        
+        
+    Returns
+    -------
+    initFidelity_ms0 : float
+        Units: 1, range [0, 1].
+    """
+    state = initStateImproved(tsteps, ksteps, state0=state0)
+    initFidelity_ms0 = ksteps[-1].getGSPolarization_ms0(state) # the last kstep from makeStepsForImprovedReadInit() has laserpower=0.
+    return initFidelity_ms0
+
+
+def getContrastImproved(integrationTime, tsteps, ksteps,
+                        minLaserOnTime=0.5e-6, tstepsize=1e-9,
+                        level1=0, level2=1, makePlot=False, state0=None,
+                        ):
+    """
+    Get the readout contrast for a given integrationTime setting using the
+    tsteps with ksteps as makeStepsForImprovedReadInit() returns.
+    Output just like the simpler version getContrast().
+    
+    Use makePlot=True to get a visual impression of whats happening inside this
+    function.
+    
+    
+    Parameters
+    ----------        
+    integrationTime : float or str
+        If a float [Unit: s] is provided, it is used as fix integration time.
+        For more information see getContrastOf2pointODMRTrace().
+        
+        If one of the strings 'optC'/ 'optSens'/ 'optSNR' is provided, the 
+        integration time is chosen such to achieve maximal
+        contrast/ sensitivity/ SNR.
+        For sensitivity, a Gaussian pulsed ODMR is assumed.
+        More see sensitivityGauss() and readoutSNR().
+        
+    tsteps, ksteps: lists
+        Use the return values of makeStepsForImprovedReadInit().
+        
+    minLaserOnTime : float, optional
+        The maximum integrationTime possible. Units: s
+        Usually, one does not want it to exceed the laserReadTime of
+        makeStepsForImprovedReadInit(). Its value influences the computation time.
+        
+    tstepsize : float, optional
+        Size of time steps used to evaluate the PL traces on. Unit: s.
+
+    level1, level2 : int, optional
+        Indices of the levels in EIG basis between which the pi-pulse is applied
+        to obtain the contrast. Which levels these are depends on the modeldict
+        setting. You can use simulateEigenVsParam() to see the spin nature of
+        the EIG levels.
+        The pi-pulse fidelity is given by ksteps[0].modeldict['piPulseFid'].
+        
+    state0 : numpy.ndarray, optional
+        Depending on the modelClass used in ksteps, this is a vector in EIG basis
+        for classical rate models or a density matrix in EZ basis for the MEmodel.
+        state0 is propagated through tsteps, ksteps to obtain the state of which
+        the contrast is calculated.
+        If state0=None (default), the thermal state is assumed
+        (see NVrateModel.steadyState()).
+    
+    
+    Returns
+    -------
+    contrast : float
+        Readout contrast. Units: 1
+    
+    tint : float
+        integration time used by the routine. Units: s.
+        For more information see getContrastOf2pointODMRTrace().
+        
+    ref : float
+        Average countrate of the reference pulse during the tint integration 
+        window. sig can be calculated from (1-contrast)*ref.
+        For more information see getContrastOf2pointODMRTrace().
+    """
+    modelClass = ksteps[0]
+    shift = 1e-16 # should be the same as the hard-coded one in makeStepsForImprovedReadInit().
+    t1 = tsteps[0]-shift # t0 in makeStepsForImprovedReadInit().
+    
+    if type(integrationTime) is float or type(integrationTime) is np.float_:
+        tend = t1 + integrationTime + 5*tstepsize # need to extend since t1s causes 2 laser off points in beginning and point in time at integrationTime is included.
+    elif integrationTime in ('optC', 'optSens', 'optSNR'):
+        tend = t1 + minLaserOnTime + 5*tstepsize # just assume that no integration window would ever be longer than minLaserOnTime.
+    else:
+        print('ERROR: got type(integrationTime)={} and integrationTime={}'.format(
+            type(integrationTime), integrationTime))
+        raise NotImplementedError
+    
+    state0 = initStateImproved(tsteps, ksteps, state0=state0)
+    piPulseFid=ksteps[0].modeldict['piPulseFid']
+    
+    PLs = []
+    times = np.arange(0, tend, tstepsize)
+    for piPulseFirst in [False, True]: # ms=0, ms=1 (assuming good init in state0)
+        if not piPulseFirst:
+            state = state0
+        else:
+            if modelClass.name=='MEmodel':
+                # convert the state (EZ basis for MEmodel) to the EIG basis:
+                thismodel = ksteps[0]
+                _=thismodel.population(state0,'EIG') # to create thismodel.T_EIGtoEZ_withSS
+                state0_EIG = basisTrafo(state0, thismodel.T_EIGtoEZ_withSS,
+                                        T_old_to_new=thismodel.T_EZtoEIG_withSS)
+                # apply a state swap:
+                state_EIG = piPulse(state0_EIG, level1=level1, level2=level2, 
+                            piPulseFid=piPulseFid)
+                # convert the EIG state back to the EZ basis of MEmodel states:
+                state = basisTrafo(state_EIG, thismodel.T_EZtoEIG_withSS,
+                                        T_old_to_new=thismodel.T_EIGtoEZ_withSS)
+            else: # classical models use EIG basis natively
+                state = piPulse(state0, level1=level1, level2=level2, 
+                            piPulseFid=piPulseFid)
+        _, _, pls, _ = calcTimeTrace(times, tsteps, ksteps, state,
+                                            basisName=None,
+                                            )
+        PLs.append(pls)
+
+    # getContrastOf2pointODMRTrace expects a 2pointODMR trace. Generate one:
+    # The concatenated traces are not physical, but the routine works on them.
+    t3 = t1+times[-1]+tstepsize # +tstepsize since this is the value of the first time of the second part:
+    times = np.concatenate((times, times+times[-1]+tstepsize))
+    pls = np.concatenate(PLs)
+    contrast, tint, sig, ref = getContrastOf2pointODMRTrace(times, pls, t1, t3,
+                                                integrationTime=integrationTime,
+                                                minLaserOnTime=tend-t1-tstepsize,
+                                                piPulseFirst=False)
+    if makePlot:
+        name = f'Found: tint={tint*1e9:.3f}ns, C={contrast*100:.2f}%\n\
+tstepsize={tstepsize*1e9:.3f}ns'
+        fig = plt.figure(figsize=(8,5))
+        fig.suptitle(name, fontsize='small')
+        fig.set_tight_layout(True)
+        axes = fig.add_subplot(111)
+        axes.plot(times*1e9,pls/1e3,marker='x',ls='-')
+        axes.axvline(t1*1e9, color='black')
+        axes.axvline(t3*1e9, color='black')
+        axes.set_xlabel('time [ns]')
+        axes.set_ylabel('PL [kcts/s]')
+        axes.set_ylim(bottom=0)
+        axes.grid(True)
+        plt.show()
+    return contrast, tint, ref
+
+
+
+
+
+
+def getSNRforImprovedReadInit(
+        laserReadTime = 0.5e-6,
+        laserInitTime = 1e-6,
+        laserpower_Init = None,
+        nbrOfPulses_Init = 0,     
+        durationOfPulses_Init = 20e-9,
+        tauR = 0,
+        makePlot = False,
+        modelClass = HighTmodel,
+        **modeldict
+        ):
+    """
+    Get the SNR of a laser pulse sequence consisting of a spin readout and
+    subsequent initialization.
+    
+    Depending on the nbrOfPulses_Init, the sequence looks as follows:
+        
+    nbrOfPulses_Init = 0: 'traditional' scheme - Start at time t0, laser on for duration
+    laserReadTime+laserInitTime, laser off for a long time.
+    
+    nbrOfPulses_Init = 1: 'two-laser' scheme - Start at time t0, laser on for duration
+    laserReadTime, laser on at power laserpower_Init for duration laserInitTime,
+    laser off for a long time.
+    
+    nbrOfPulses_Init > 1: 'pulsed' scheme - Start at time t0, laser on for duration
+    laserReadTime, laser pulsing at power laserpower_Init for duration laserInitTime
+    with nbrOfPulses_Init evenly separated pulses of duration durationOfPulses_Init,
+    laser off for a long time.
+    
+    For the details on how the laser rise time tauR (and Delta_t=tauR/5 here) is used, see 
+    makeStepsForImprovedReadInit() and makeStepsForLaserRise().
+    An initial state m_s=-1 (state0 in getContrastImproved()) is assumed.
+    Parameters that are not needed for the respective scheme are ignored.
+    laserReadTime is at the same time the maximal integration time (called minLaserOnTime in getContrast()).    
+    In modeldict the laser has to be on: laserpower>0 (or default, which is on).
+    
+    Parameters
+    ----------
+    laserReadTime, laserInitTime, durationOfPulses_Init, tauR : floats, optional
+        see above. Units: s
+        
+    laserpower_Init : float or None, optional    
+        Unit: W. The laserpower for the read is set in modeldict by the kwarg laserpower.
+        If None, laserpower_Init=laserpower is used.
+    
+    nbrOfPulses_Init, N : int, optional
+        see above
+    
+    modelClass : NVrateModel, optional
+        Specify which rate model to use. Options:
+        MEmode (default), HighTmodel, LowTmodel, SZmodel
+        Note that the improved schemes of this function are only interesting
+        at room temperature, thus HighTmodel is the default in contrast to 
+        other functions in this library.
+        
+    modeldict : dict, optional
+        Optional keyword arguments can be provided by a modeldict or separately.
+        For more details, see makeModelDict().
+    
+    
+    Returns
+    -------
+    SNR : float
+        For more information see readoutSNR().
+        
+    contrast : float
+        Readout contrast. Units: 1
+    
+    tint : float
+        integration time used by the routine. Units: s.
+        integrationTime mode 'optSNR' is used.
+        For more information see getContrastOf2pointODMRTrace().
+    """
+    integrationTime = 'optSNR'
+    minLaserOnTime=laserReadTime if not makePlot else laserReadTime+laserInitTime+1e-6
+    
+    N=4
+    Delta_t=tauR/5
+    
+    tsteps, ksteps = makeStepsForImprovedReadInit(
+        laserReadTime = laserReadTime,
+        laserInitTime = laserInitTime,
+        laserpower_Init = laserpower_Init,
+        nbrOfPulses_Init = nbrOfPulses_Init,
+        durationOfPulses_Init = durationOfPulses_Init,
+        modelClass = modelClass,
+        tauR = tauR, N=N, Delta_t=Delta_t,
+        **modeldict)
+    
+    # start in m_s=-1 (if field is aligned):
+    state0 = ksteps[0].getPureState(2)
+    contrast, tint, ref = getContrastImproved(integrationTime, tsteps, ksteps,
+                        minLaserOnTime=minLaserOnTime, state0=state0,
+                        makePlot=makePlot)
+    
+    SNR = readoutSNR(contrast, tint, ref)
+    return SNR, contrast, tint
+
+
+def getPolarizationForImprovedReadInit(         
+        laserReadTime = 0.5e-6,
+        laserInitTime = 1e-6,
+        laserpower_Init = None,
+        nbrOfPulses_Init = 0,
+        durationOfPulses_Init = 20e-9,
+        tauR = 0,
+        modelClass = HighTmodel,
+        **modeldict
+        ):
+    """
+    Get the polarization ('InitFidelity_ms0' as in getInitFidelity_ms0()) of a
+    laser initialization sequence.
+    
+    Depending on the nbrOfPulses_Init, the sequence looks as follows:
+        
+    nbrOfPulses_Init = 0: 'traditional' scheme - Start at time t0, laser on for duration
+    laserReadTime+laserInitTime, laser off for a long time.
+    
+    nbrOfPulses_Init = 1: 'two-laser' scheme - Start at time t0, laser on for duration
+    laserReadTime, laser on at power laserpower_Init for duration laserInitTime,
+    laser off for a long time.
+    
+    nbrOfPulses_Init > 1: 'pulsed' scheme - Start at time t0, laser on for duration
+    laserReadTime, laser pulsing at power laserpower_Init for duration laserInitTime
+    with nbrOfPulses_Init evenly separated pulses of duration durationOfPulses_Init,
+    laser off for a long time.
+    
+    For the details on how the laser rise time tauR (and Delta_t=tauR/5 here) is used, see
+    makeStepsForImprovedReadInit() and makeStepsForLaserRise().
+    An initial state m_s=-1 (state0 in getContrastImproved()) is assumed.
+    Parameters that are not needed for the respective scheme are ignored.
+    laserReadTime is included as it also contributes to the initilaization.    
+    In modeldict the laser has to be on: laserpower>0 (or default, which is on).
+    
+    Parameters
+    ----------
+    laserReadTime, laserInitTime, durationOfPulses_Init, tauR : floats, optional
+        see above. Units: s
+        
+    laserpower_Init : float or None, optional    
+        Unit: W. The laserpower for the read is set in modeldict by the kwarg laserpower.
+        If None, laserpower_Init=laserpower is used.
+    
+    nbrOfPulses_Init, N : int, optional
+        see above
+    
+    modelClass : NVrateModel, optional
+        Specify which rate model to use. Options:
+        MEmode (default), HighTmodel, LowTmodel, SZmodel
+        Note that the improved schemes of this function are only interesting
+        at room temperature, thus HighTmodel is the default in contrast to 
+        other functions in this library.
+        
+    modeldict : dict, optional
+        Optional keyword arguments can be provided by a modeldict or separately.
+        For more details, see makeModelDict().
+    
+    
+    Returns
+    -------
+    pol : float
+        For more information see getInitFidelity_ms0().
+    """
+    N=4
+    Delta_t=tauR/5
+
+    tsteps, ksteps = makeStepsForImprovedReadInit(
+        laserReadTime = laserReadTime,
+        laserInitTime = laserInitTime,
+        laserpower_Init = laserpower_Init,
+        nbrOfPulses_Init = nbrOfPulses_Init,
+        durationOfPulses_Init = durationOfPulses_Init,
+        modelClass = modelClass,
+        tauR = tauR, N=N, Delta_t=Delta_t,
+        **modeldict)
+    
+        
+    # start in m_s=-1 (if field is aligned):
+    state0 = ksteps[0].getPureState(2)
+    pol = getInitFidelity_ms0Improved(tsteps, ksteps, state0=state0)
+    return pol
+
+
+
+
+
+
+def minimizationFunc_pulsed(x, # (laserpower*1e3, durationOfPulses_Init*1e9, nbrOfPulses_Init)
+                            laserInitTime,
+                            laserReadTime,
+                            tauR,
+                            modeldict
+                            ):
+    
+    laserpower, durationOfPulses_Init, nbrOfPulses_Init = x
+    durationOfPulses_Init = durationOfPulses_Init*1e-9
+    laserpower = laserpower*1e-3
+    
+    modeldict['laserpower'] = laserpower
+    
+    laserpower_Init = None
+    
+    SNR,_,_ = getSNRforImprovedReadInit(                       
+        laserpower_Init = laserpower_Init,
+        durationOfPulses_Init = durationOfPulses_Init,
+        nbrOfPulses_Init = nbrOfPulses_Init,
+        laserInitTime = laserInitTime,
+        laserReadTime = laserReadTime,
+        tauR = tauR,
+        **modeldict
+        )
+    return 1/abs(SNR)
+
+def minimizationFunc_twoLaser(x, # (laserpower*1e3, laserpower_Init*1e3)
+                            laserInitTime,
+                            laserReadTime,
+                            tauR,
+                            modeldict
+                            ):
+    laserpower, laserpower_Init = x
+    laserpower, laserpower_Init = laserpower*1e-3, laserpower_Init*1e-3
+    
+    modeldict['laserpower'] = laserpower
+
+    SNR,_,_ = getSNRforImprovedReadInit(                       
+        laserpower_Init = laserpower_Init,
+        nbrOfPulses_Init = 1,  # Set to 1 two-laser scheme.
+        laserInitTime = laserInitTime,
+        laserReadTime = laserReadTime,
+        tauR = tauR,
+        **modeldict
+        )
+    return 1/abs(SNR)
+
+def minimizationFunc_traditional(x, # (laserpower*1e3,)
+                            laserInitTime,
+                            laserReadTime,
+                            tauR,
+                            modeldict
+                            ):
+    laserpower = x
+    laserpower = laserpower*1e-3
+    
+    modeldict['laserpower'] = laserpower
+
+    SNR,_,_ = getSNRforImprovedReadInit(                       
+        nbrOfPulses_Init = 0,  # Set to 0 traditional scheme.
+        laserInitTime = laserInitTime,
+        laserReadTime = laserReadTime,
+        tauR = tauR,
+        **modeldict
+        )
+    return 1/abs(SNR)
+
+
+
+
+
+
+def getOptimizedParamsForImprovedReadInit(
+        mode_Init = 'pulsed',
+        guess = None,
+        laserReadTime = 0.5e-6,
+        laserInitTime = 1e-6,
+        tauR = 0,
+        makePlot = False,
+        disp = False,
+        **modeldict
+        ):
+    """
+    Return the parameters of a laser pulse sequence consisting of a spin readout and
+    subsequent initialization that was optimized for highest SNR.
+
+    Depending on the mode_Init, the sequence looks as follows (parameter names
+    as in the returned dictionary):
+        
+    mode_Init = 'traditional' - Start at time t0, laser on for duration
+    laserReadTime+laserInitTime, laser off for a long time.
+    nbrOfPulses_Init=0.
+    
+    mode_Init = 'two-laser' - Start at time t0, laser on for duration
+    laserReadTime, laser on at power laserpower_Init for duration laserInitTime,
+    laser off for a long time.
+    nbrOfPulses_Init=1.
+    
+    mode_Init = 'pulsed' - Start at time t0, laser on for duration
+    laserReadTime, laser pulsing at power laserpower_Init for duration laserInitTime
+    with nbrOfPulses_Init evenly separated pulses of duration durationOfPulses_Init,
+    laser off for a long time.
+    
+    For the details on how the laser rise time tauR is used, see 
+    makeStepsForImprovedReadInit() and makeStepsForLaserRise().
+    An initial thermal state (state0=None in getContrastImproved()) is assumed.
+    laserReadTime is at the same time the maximal integration time (called minLaserOnTime in getContrast()).    
+    In modeldict the laser has to be on: laserpower>0 (or default, which is on).
+    Implicitly, modelClass = HighTmodel, since this is only interesting at room
+    temperature.
+
+    
+    Parameters
+    ----------
+    mode_Init : str, optional
+        Options: 'traditional', 'two-laser', 'pulsed'
+        
+    guess : None or tuple, optional
+        If None, the function determines a good guess brute-force.
+        Else, guess is a tuple and dependent on mode_Init:
+        mode_Init = 'pulsed': (laserpower, durationOfPulses_Init, nbrOfPulses_Init)
+        mode_Init = 'two-laser': (laserpower, laserpower_Init)
+        mode_Init = 'traditional': no guess needed, guess is ignored.
+    
+    laserReadTime, laserInitTime, tauR : floats, optional
+        see above. Units: s
+
+    nbrOfPulses_Init, N : int, optional
+        see above
+        
+    modeldict : dict, optional
+        Optional keyword arguments can be provided by a modeldict or separately.
+        For more details, see makeModelDict().
+    
+    
+    Returns
+    -------
+    kwargs_ForImprovedReadInit : dict
+        Optional arguments as accepted for example by makeStepsForImprovedReadInit().
+    """
+    modeldict = makeModelDict(**modeldict) # generate from modeldict kwargs
+    
+    mA = modeldict['opticAlign']/1e3 # use to give laser power in the form of the saturation parameter below.
+    upperBoundLaser = 2/mA # beta/mA = laserpower in units: mW
+    lowerBoundLaser = 0.1/mA # beta/mA = laserpower in units: mW
+    lowerBoundInitLaser = 0.01/mA # beta/mA = laserpower in units: mW
+    
+    options = {} if not disp else {'disp':disp}
+    
+    # traditional scheme:
+    if  mode_Init == 'traditional':
+        nbrOfPulses_Init = 0
+
+        def printmimimizestatus_trad(stagename, resx, extraArgs):
+            if disp:
+                print(stagename,':')
+                print("Laser = {:.2f}mW".format(
+                    resx
+                    ))
+                print("SNR = {:.4f}e-2".format(1e2*1/minimizationFunc_traditional(resx, *extraArgs)))
+        
+        # Order of x: (laserpower*1e3, laserpower_Init*1e3)
+        bounds = (lowerBoundLaser, upperBoundLaser)
+        extraArgs = (laserInitTime, laserReadTime, tauR, modeldict)
+
+        stagename = 'minimize'
+        res = minimize_scalar(minimizationFunc_traditional, args=extraArgs, bounds=bounds,
+                              options=options,
+                              )
+        printmimimizestatus_trad(stagename, res.x, extraArgs)
+    
+        laserpower = res.x
+        laserpower = laserpower*1e-3
+        durationOfPulses_Init = 0
+        laserpower_Init = None
+        
+    
+    # two-laser scheme:
+    elif  mode_Init == 'two-laser':
+        nbrOfPulses_Init = 1
+        
+        def printmimimizestatus_twoL(stagename, resx, extraArgs):
+            if disp:
+                print(stagename,':')
+                print("Laser Read = {:.2f}mW, Laser Init = {:.2f}mW".format(
+                    resx[0], resx[1]
+                    ))
+                print("SNR = {:.4f}e-2".format(1e2*1/minimizationFunc_twoLaser(resx, *extraArgs)))
+        
+        # Order of x: (laserpower*1e3, laserpower_Init*1e3)
+        bounds = [(lowerBoundLaser, upperBoundLaser), (lowerBoundInitLaser, upperBoundLaser)]
+        extraArgs = (laserInitTime, laserReadTime, tauR, modeldict)
+        
+        if guess is not None:
+            stagename = 'guess'
+            guess = np.array(guess)*1e3 # two-laser: (laserpower*1e3, laserpower_Init*1e3)
+            printmimimizestatus_twoL(stagename, guess, extraArgs)
+        else:
+            stagename = 'brute'
+            ranges = (slice(bounds[0][0], bounds[0][1], (bounds[0][1]-bounds[0][0])/5),
+                      slice(bounds[1][0], bounds[1][1], (bounds[1][1]-bounds[1][0])/5))
+            guess = brute(minimizationFunc_twoLaser, ranges, args=extraArgs, finish=None)
+            printmimimizestatus_twoL(stagename, guess, extraArgs)
+        
+        stagename = 'minimize'
+        res = minimize(minimizationFunc_twoLaser, guess, args=extraArgs, bounds=bounds,
+                       options=options,
+                       method='Nelder-Mead',
+                       )
+        printmimimizestatus_twoL(stagename, res.x, extraArgs)
+    
+        laserpower, laserpower_Init = res.x
+        laserpower = laserpower*1e-3
+        laserpower_Init = laserpower_Init*1e-3
+        durationOfPulses_Init = 0
+        
+    
+    # pulsed init:
+    elif mode_Init == 'pulsed':
+        def printmimimizestatus_pulsed(stagename, resx, extraArgs):
+            if disp:
+                print(stagename,':')
+                print("Laser = {:.2f}mW, On = {:.1f}ns, Nbr. = {:.0f}".format(
+                    resx[0], resx[1], resx[2]
+                    ))
+                print("SNR = {:.4f}e-2".format(1e2*1/minimizationFunc_pulsed(resx, *extraArgs)))
+        
+        # Order of x: (laserpower*1e3, durationOfPulses_Init*1e9, nbrOfPulses_Init)
+        bounds = [(lowerBoundLaser, upperBoundLaser), (1, 2+laserInitTime*1e9), 
+                  (1, 20)] # also allow to use the two-laser scheme (which is the traditional one here since same laser power).
+        extraArgs = (laserInitTime, laserReadTime, tauR, modeldict)
+        
+        if guess is not None:
+            stagename = 'guess'
+            guess = [guess[0]*1e3, guess[1]*1e9, guess[2]] # pulsed: (laserpower*1e3, durationOfPulses_Init*1e9, nbrOfPulses_Init)
+            printmimimizestatus_pulsed(stagename, guess, extraArgs)
+        else:
+            stagename = 'brute'
+            ranges = (slice(bounds[0][0], bounds[0][1], (bounds[0][1]-bounds[0][0])/10),
+                      slice(1+tauR*1e9, 31+tauR*1e9, 3), 
+                      slice(bounds[2][0], bounds[2][1], 1))
+            guess = brute(minimizationFunc_pulsed, ranges, args=extraArgs, finish=None)
+            printmimimizestatus_pulsed(stagename, guess, extraArgs)
+        
+        stagename = 'minimize'
+        res = minimize(minimizationFunc_pulsed, guess, args=extraArgs, bounds=bounds,
+                       options=options,
+                       method='Nelder-Mead',
+                       )
+        printmimimizestatus_pulsed(stagename, res.x, extraArgs)
+    
+        laserpower, durationOfPulses_Init, nbrOfPulses_Init = res.x
+        durationOfPulses_Init = durationOfPulses_Init*1e-9
+        laserpower = laserpower*1e-3
+        nbrOfPulses_Init = int(nbrOfPulses_Init)
+        laserpower_Init = None
+
+    else:
+        raise NotImplementedError(f'The mode_Init = "{mode_Init}" is not defined.')
+
+    
+    modeldict['laserpower'] = laserpower
+    if makePlot:
+        _ = getSNRforImprovedReadInit(         
+                    laserpower_Init = laserpower_Init,
+                    durationOfPulses_Init = durationOfPulses_Init,
+                    nbrOfPulses_Init = nbrOfPulses_Init,
+                    laserInitTime = laserInitTime,
+                    laserReadTime = laserReadTime,
+                    tauR = tauR,
+                    makePlot=True,
+                    **modeldict
+                    )
+
+    kwargs_ForImprovedReadInit = {
+        "laserReadTime": laserReadTime,
+        "laserInitTime": laserInitTime,
+        "laserpower_Init": laserpower_Init,
+        "nbrOfPulses_Init": nbrOfPulses_Init,
+        "durationOfPulses_Init": durationOfPulses_Init,
+        "tauR": tauR,
+        }
+    
+    kwargs_ForImprovedReadInit.update(modeldict)
+
+    return kwargs_ForImprovedReadInit
+
+
