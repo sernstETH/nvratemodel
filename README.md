@@ -9,7 +9,7 @@ What this library can do:
 
 What this library cannot do (at this point):
 - Simulate quantum gates on the spin other than instantaneous pi-pulses.
-- Simulate non-classical optical processes.
+- Simulate non-classical optical processes (more see ```spinCoherentOptics``` below).
 - Include the hyperfine structure in the simulation.
 - Include the effects of strain/el. field on the ground state, and the effect of its on-axis components in general.
 
@@ -302,3 +302,9 @@ getSNRforImprovedReadInit
 getPolarizationForImprovedReadInit
 getOptimizedParamsForImprovedReadInit
 ```
+
+
+Spin coherence during optical excitation and decay
+---------------------------------------------------
+The default setting ```spinCoherentOptics = True``` in the ```GLOBAL.py``` file implements the optical excitation and decay processes such that spin state coherences are preserved (https://arxiv.org/abs/1111.3687).
+The transitions between the electronic states (ground state and excited state) are implemented as incoherent classical processes.

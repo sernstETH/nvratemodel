@@ -45,7 +45,8 @@ from GLOBAL import Dgs, Des_para, Des_perp, Les_para, Les_perp, gl, d1, d2, d3, 
     SSRatio_default, SSPhonE_default, SSTauDecay_default, T_default, \
     elPhonCoup_default, phonCutoff_default, laserpower_default, \
     background_default, colExRatio_default, opticAlign_default, \
-    darkcounts_default, piPulseFid_default, highT_trf_default
+    darkcounts_default, piPulseFid_default, highT_trf_default, \
+    spinCoherentOptics
     
 
 #######################
@@ -1415,21 +1416,11 @@ def makeIncoherentLindbladOpList(
     
     For more detail see https://arxiv.org/abs/2304.02521.
     """    
-    betaEx, betaEy = getBetas(laserpower, opticAlign, exRatio)
     k71, k72 = getSSRatesFromSSL(lifetimeBoseEinsteinFunc_scalar(T, SSTauDecay, SSPhonE), SSRatio)
     T_HFtoEZ_withSS = get_T_HFtoEZ_withSS(B, thetaB, phiB, Eperp, phiE)
     T_EZtoHF_withSS = conjTransp(T_HFtoEZ_withSS)
     
-    rates = { # structure: name, value, indices for rate matrix in the from: (from state, to state)
-        'betaEx': (betaEx*kr, (
-            (0, 3), (1, 4), (2, 5),
-            ), 'HF'),
-        'betaEy': (betaEy*kr, (
-            (0, 6), (1, 7), (2, 8),
-            ), 'HF'),
-        'kr': (kr, (
-            (3, 0), (4, 1), (5, 2), (6, 0), (7, 1), (8, 2),
-            ), 'EZ'),
+    rates = { # structure: name: (value, indices for rate matrix in the from: (from state, to state), basis of these indices)
         'kExy': (kExy, (
             (5, 9), (6, 9),
             ), 'ZF'),
@@ -1446,6 +1437,17 @@ def makeIncoherentLindbladOpList(
             (9, 0), (9, 2),
             ), 'EZ'),
         }
+    if not spinCoherentOptics:
+        betaEx, betaEy = getBetas(laserpower, opticAlign, exRatio)
+        rates['betaEx'] = (betaEx*kr, (
+            (0, 3), (1, 4), (2, 5),
+            ), 'HF')
+        rates['betaEy'] = (betaEy*kr, (
+            (0, 6), (1, 7), (2, 8),
+            ), 'HF')
+        rates['kr'] = (kr, (
+            (3, 0), (4, 1), (5, 2), (6, 0), (7, 1), (8, 2),
+            ), 'EZ')
     Llist_EZ = []
     for rate in rates.keys():
         if rates[rate][0] > 0.:
@@ -1523,6 +1525,67 @@ LindbladOp_DecayOfEyToEy_HF = np.array([
         [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
         ], dtype = np.complex128)
 
+LindbladOp_DecayOfGSToEx_HF = np.array([
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        
+        [ 1, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 1, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 1,   0, 0, 0,    0, 0, 0,    0 ],
+        
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        ], dtype = np.complex128)
+LindbladOp_DecayOfGSToEy_HF = np.array([
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        
+        [ 1, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 1, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 1,   0, 0, 0,    0, 0, 0,    0 ],
+        
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        ], dtype = np.complex128)
+LindbladOp_DecayOfExToGS_HF = np.array([
+        [ 0, 0, 0,   1, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 1, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 1,    0, 0, 0,    0 ],
+        
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        ], dtype = np.complex128)
+LindbladOp_DecayOfEyToGS_HF = np.array([
+        [ 0, 0, 0,   0, 0, 0,    1, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 1, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 1,    0 ],
+        
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        
+        [ 0, 0, 0,   0, 0, 0,    0, 0, 0,    0 ],
+        ], dtype = np.complex128)
+
 LindbladOp_GS_msp1_ypiPulse_EZ = np.zeros((10,10), dtype = np.complex128)
 LindbladOp_GS_msp1_ypiPulse_EZ[:2,:2] = sigma_y # as level1=0, level2=1 in piPulse()
 LindbladOp_GS_msp1_xpiPulse_EZ = np.zeros((10,10), dtype = np.complex128)
@@ -1538,6 +1601,10 @@ def makeCoherentLindbladOpList(
                 phiB = phiB_default,
                 Eperp = Eperp_default, 
                 phiE = phiE_default,
+                laserpower = laserpower_default,
+                opticAlign = opticAlign_default,
+                exRatio = exRatio_default,
+                kr = kr_default,
                 elPhonCoup  = elPhonCoup_default,
                 phonCutoff = phonCutoff_default,
                 **kwargs, #they are simply ignored.
@@ -1588,6 +1655,32 @@ def makeCoherentLindbladOpList(
         
         Llist_EZ.append(LindbladOp_DecayOfExToEx_EZ)
         Llist_EZ.append(LindbladOp_DecayOfEyToEy_EZ)
+        
+    if spinCoherentOptics:
+        LindbladOp_DecayOfExToGS_EZ = basisTrafo(
+                LindbladOp_DecayOfExToGS_HF*np.sqrt(kr),
+                T_EZtoHF_withSS, T_old_to_new=T_HFtoEZ_withSS)
+            
+        LindbladOp_DecayOfEyToGS_EZ = basisTrafo(
+                LindbladOp_DecayOfEyToGS_HF*np.sqrt(kr),
+                T_EZtoHF_withSS, T_old_to_new=T_HFtoEZ_withSS)
+        
+        Llist_EZ.append(LindbladOp_DecayOfExToGS_EZ)
+        Llist_EZ.append(LindbladOp_DecayOfEyToGS_EZ)
+        
+        if laserpower>0:
+            betaEx, betaEy = getBetas(laserpower, opticAlign, exRatio)
+            
+            LindbladOp_DecayOfGSToEx_EZ = basisTrafo(
+                    LindbladOp_DecayOfGSToEx_HF*np.sqrt(betaEx*kr),
+                    T_EZtoHF_withSS, T_old_to_new=T_HFtoEZ_withSS)
+                
+            LindbladOp_DecayOfGSToEy_EZ = basisTrafo(
+                    LindbladOp_DecayOfGSToEy_HF*np.sqrt(betaEy*kr),
+                    T_EZtoHF_withSS, T_old_to_new=T_HFtoEZ_withSS)
+
+            Llist_EZ.append(LindbladOp_DecayOfGSToEx_EZ)
+            Llist_EZ.append(LindbladOp_DecayOfGSToEy_EZ)
         
     return Llist_EZ
 

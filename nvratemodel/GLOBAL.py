@@ -62,3 +62,6 @@ opticAlign_default = 136.2 # unit: 1/W
 darkcounts_default = 0. # unit: cps
 piPulseFid_default = 1. # unit: 1
 highT_trf_default  = False # unit: bool
+
+
+spinCoherentOptics = True # see Fuchs, et al., PRL 108, 157602 (2012).

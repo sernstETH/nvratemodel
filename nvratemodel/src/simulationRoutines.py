@@ -142,7 +142,7 @@ def simulateEigenVsParam(path=None, plot=True,
         spinvalues_sorted, energies_sorted = sortarrays(
             spinvalues, energies, order='decr')
         resonances = np.abs(np.diff(energies_sorted))
-        GSresonances.append(resonances) # f+, f- # alternative to core.getGSresonances()
+        GSresonances.append(resonances) # f+, f- # alternative to getGSresonances()
         
         # avgES:
         if not highT_trf:
@@ -260,7 +260,7 @@ def simulateEigenVsParam(path=None, plot=True,
         if plotAvgES or plotGS:
             axes.legend(fontsize='small')
         
-        name = 'Gradient of resonances of Hamiltonian\n{}'.format(
+        name = 'gradient of resonances of Hamiltonian\n{}'.format(
             ''.join([
                 getParamStr((key, value))+', '
                 if key in ['thetaB', 'phiB', 'B', 'Eperp', 'phiE', 'T'] else ''
@@ -480,12 +480,14 @@ def simulateEigenVsParam(path=None, plot=True,
         if plotES==False:
             for fig in [figExpOrb, figVecsEZ, figVecsZF, figVecsHF, figVecsZB]:
                 plt.close(fig)
-        
-        if plotAvgES==False and plotGS==False:
-            for fig in [figVecsavgEZ, figResonances, figResonancesGrad]:
+        if plotAvgES==False:
+            for fig in [figVecsavgEZ,]:
+                plt.close(fig)
+        if plotGS==False:
+            for fig in [figResonances, figResonancesGrad]:
                 plt.close(fig)
         plt.show()
-    elif path!=None: # close all figures here if plot=False and saved, since too many.
+    elif path!=None: # close all figures here if plot=False and saved
         for fig in [figEnergies, figResonances, figResonancesGrad,
                     figExpS_z, figExpOrb, figVecsEZ, 
                     figVecsZF, figVecsHF, figVecsZB, figVecsavgEZ]:
@@ -1404,8 +1406,13 @@ def simulatePopTimeTrace(times, tsteps, ksteps, state0,
 
     Returns
     -------
+    axes1 , axes2 : matplotlib axes
+        Population plot axis, PL plot axis.
     dic : dict
         Contains the computation results and is also saved to file if path!=None.
+        
+    path : str
+        Parameter path plus the folder name used to save the data.
 
     """
     if jumpTimes != []:
