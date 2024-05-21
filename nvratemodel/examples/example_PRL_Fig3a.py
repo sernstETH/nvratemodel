@@ -1,17 +1,12 @@
 import numpy as np
 from copy import deepcopy
 
-from os.path import abspath, dirname
-from os.path import join as osjoin
-import sys
-sys.path.insert(0, abspath(osjoin(dirname(__file__), '..'))) # add root directory to import paths
-
-from src.core import MEmodel, HighTmodel, LowTmodel, \
+from nvratemodel.src.core import MEmodel, HighTmodel, LowTmodel, \
     loadModelDictFromFile, makeModelDict
     
-from src.simulationRoutines import simulate2DMap
+from nvratemodel.src.simulationRoutines import simulate2DMap
 
-from GLOBAL import PATH_DATA, kE12OVERkA1
+from nvratemodel.GLOBAL import PATH_DATA, kE12OVERkA1
 
 def run(path=None):
     """

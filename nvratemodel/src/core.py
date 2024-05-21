@@ -15,29 +15,27 @@ from json import load, dump
 # Configure paths for LUT and saving/loading data:
 from os.path import abspath, dirname, pardir
 from os.path import join as osjoin
-import sys
 ROOTDIR = abspath(osjoin(dirname(__file__), pardir))
-sys.path.insert(0, ROOTDIR) # add root directory to import paths
 
 PATH_LUT = ROOTDIR
-from GLOBAL import PATH_DATA # used in plotRoutines.py
+from nvratemodel.GLOBAL import PATH_DATA # used in plotRoutines.py
 
 
 # Load routines:
-from src.auxRoutines import ensure_dir, getmylinestyle, getmycolor, getIndx, \
+from .auxRoutines import ensure_dir, getmylinestyle, getmycolor, getIndx, \
     sortarrays, printMatrix  # used in plotRoutines.py
 
 
 # Configure numba:
 import numba as nb
-from GLOBAL import NUMBA_OPT
+from nvratemodel.GLOBAL import NUMBA_OPT
 jitOpt = nb.jit(nopython=True) if NUMBA_OPT else lambda x: x
 # For debugging purposes (better error reports) and for single executions
 # it can be useful to use NUMBA_OPT=False.
 
 
 # Load globally accessible default NV center parameters:
-from GLOBAL import Dgs, Des_para, Des_perp, Les_para, Les_perp, gl, d1, d2, d3, d4, d5, \
+from nvratemodel.GLOBAL import Dgs, Des_para, Des_perp, Les_para, Les_perp, gl, d1, d2, d3, d4, d5, \
     B_convfactor_GSandES, diamondDebyeEnergy, PlakhotnikCutoffEnergy, \
     AbtewCutoffEnergy, kE12OVERkA1, \
     Eperp_default, phiE_default, B_default, thetaB_default, phiB_default, \

@@ -2,10 +2,8 @@ from os.path import abspath, dirname
 from os.path import join as osjoin
 from scipy.optimize import minimize
 from matplotlib.colors import LogNorm
-import sys
-sys.path.insert(0, abspath(osjoin(dirname(__file__), '..'))) # add root directory to import paths
 
-from src.core import *
+from .core import *
 
 
 def simulateEigenVsParam(path=None, plot=True,
