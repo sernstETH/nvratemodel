@@ -4,7 +4,7 @@ Numerical rate models to simulate the photo-physics of the Nitrogen-Vacancy (NV)
 What is this?
 --------------
 What this library can do:
-- For the first time, it is possible to simulate the NV center photo-physics over the commonly covered range of temperature (cryogenic to room temperature), strain/el. field, and magnetic field. For this, use the ```MEmodel``` (see below). The theory and details behind this model are provided in https://arxiv.org/abs/2304.02521.
+- For the first time, it is possible to simulate the NV center photo-physics over the commonly covered range of temperature (cryogenic to room temperature), strain/el. field, and magnetic field. For this, use the ```MEmodel``` (see below). The theory and details behind this model are provided in https://arxiv.org/abs/2304.02521 (compact) and https://doi.org/10.3929/ethz-b-000674178 (extended).
 - Simulate at high computational speed the NV center photo-physics at elevated temperature (e.g. room temperature). For this, use the ```HighTmodel``` (see below), which is a commonly used classical rate model. Even though this model is very common, the accessibility of simulating e.g. contrast or SNR vs. key parameters with just a few lines of code, as well as the inclusion of the "temperature reduction factor" (```highT_trf```) (see below), also make this part of the library a useful tool.
 
 What this library cannot do (at this point):
